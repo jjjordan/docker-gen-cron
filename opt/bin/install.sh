@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Install prerequisites
-echo ==== Installing prequisite packages
+echo ==== Installing prerequisite packages
 BUILD_PACKAGES="build-essential wget"
 RUN_PACKAGES="tini ca-certificates python3 msmtp elvis-tiny"
 apt-get update -y -qq || exit $?
