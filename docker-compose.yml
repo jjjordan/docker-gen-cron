@@ -1,0 +1,18 @@
+version: '3'
+services:
+  fcron:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    environment:
+      TIMEZONE: America/Los_Angeles
+      FCRON_ENV_PREFIX: CRON_TESTING
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  cnt_1:
+    image: debian
+    tty: true
+    environment:
+      CRON_TESTING_0: ''
+      CRON_TESTING_1: '@daily echo Hello world!'

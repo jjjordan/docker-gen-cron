@@ -1,0 +1,18 @@
+FROM debian:10.2-slim
+
+ENV FCRON_VERSION=3.2.1 \
+    DOCKER_VERSION=18.06.3-ce \
+    DOCKER_GEN_VERSION=0.7.4
+
+RUN apt-get update -y -qq \
+ && apt-get install -y -qq build-essential wget tini ca-certificates python3 msmtp elvis-tiny --no-install-recommends \
+ && cd /tmp \
+ && wget http://fcron.free.fr/archives/fcron-$FCRON_VERSION.src.tar.gz \
+ && wget https://download.docker.com/linux/static/stable/x86_64/docker-$DOCKER_VERSION.tgz \
+ && wget https://github.com/jwilder/docker-gen/releases/download/$DOCKER_GEN_VERSION/docker-gen-linux-amd64-$DOCKER_GEN_VERSION.tar.gz
+
+ENTRYPOINT ["/usr/bin/tini", "/opt/bin/start.sh"]
+COPY opt/bin/install.sh /opt/bin/install.sh
+RUN /bin/sh /opt/bin/install.sh
+ADD opt /opt
+RUN chmod 755 /opt/bin/*.sh /opt/lib/*.py

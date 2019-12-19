@@ -1,0 +1,18 @@
+{{ $prefix := (printf "%s_" (coalesce .Env.FCRON_ENV_PREFIX "CRON")) }}
+{
+  "containers": [
+{{ range $cid, $container := . }}
+    { "id": {{ json $container.ID }}, "name": {{ json $container.Name }}, "running": {{ json $container.State.Running }},
+      "envs": [
+  {{ range $envk, $envv := $container.Env }}
+    {{ if hasPrefix $prefix $envk }}
+        { "key": {{ json (trimPrefix $prefix $envk) }}, "cmd": {{ json $envv }} },
+    {{ end }}
+  {{ end }}
+        null	{{/* Deal with trailing ',', ignored by processor */}}
+      ] },
+{{ end }}
+      null	{{/* Deal with trailing ',', ignored by processor */}}
+  ],
+  "env": {{ json .Env }}
+}
