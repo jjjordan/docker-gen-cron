@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import hashlib
 import json
 import re
 
@@ -8,10 +9,6 @@ JOB_FILE = "/var/run/jobs.json"
 class CronTab:
     def __init__(self):
         self.containers = []
-    
-    def serialize(self, out):
-        for c in self.containers:
-            c.serialize(out)
 
 class Container:
     def __init__(self):
@@ -21,16 +18,6 @@ class Container:
         self.jobs = []
         self.start_jobs = []
         self.restart_jobs = []
-    
-    def serialize(self, out):
-        out.append("# Container {name}".format(name=self.name))
-        out.append("!reset")
-        for l in self.jobs:
-            l.serialize(self, out)
-        for l in self.start_jobs:
-            l.serialize(self, out)
-        for l in self.restart_jobs:
-            l.serialize(self, out)
 
 class Job:
     def __init__(self):
@@ -45,7 +32,13 @@ class Job:
         self.start = False
         self.restart = False
     
-    def serialize(self, container, out):
+    def serialize(self, container):
+        if self.prefix == '!':
+            return self.prefix + self.serialize_options()
+        
+        if self.assign is not None:
+            return "{} = {}".format(self.assign[0], self.assign[1])
+        
         s = "{prefix}{options} {timespec} {run} {name} ".format(
             prefix=self.prefix,
             options=self.serialize_options(),
@@ -60,10 +53,18 @@ class Job:
         else:
             s += "job " + self.cmdhash()
         
-        out.append(s)
+        return s
     
     def serialize_options(self):
         return ','.join(('{name}({value})' if v is not None else '{name}').format(name=k, value=v) for k, v in self.options.items())
+    
+    def cmdhash(self):
+        m = hashlib.sha256()
+        m.update(self.cmd.encode('utf-8'))
+        if self.input is not None:
+            m.update(b"%%%")
+            m.update(self.input.encode('utf-8'))
+        return m.hexdigest()[0:10]
 
 def parseJobs():
     with open(JOB_FILE, "r") as f:
@@ -72,7 +73,7 @@ def parseJobs():
     result = CronTab()
     for cj in j["containers"]:
         if cj is None: continue
-        kvs = ((e["key"], e["value"]) for e in cj["envs"] if e is not None)
+        kvs = [(e["key"], e["cmd"]) for e in cj["envs"] if e is not None]
         if len(kvs) == 0:
             continue
 
@@ -87,8 +88,8 @@ def parseJobs():
 
 def parseContainer(c, e):
     jobs = [(int(k), v) for k, v in e if isInt(k)]
-    startJobs = [(int(trimPrefix("START_", k)), v) for k, v in e if isInt(trimPrefix("START_", k))]
-    restartJobs = [(int(trimPrefix("RESTART_", k)), v) for k, v in e if isInt(trimPrefix("RESTART_", k))]
+    startJobs = [(int(trimPrefix("START_", k)), v) for k, v in e if k.startswith("START_") and isInt(trimPrefix("START_", k))]
+    restartJobs = [(int(trimPrefix("RESTART_", k)), v) for k, v in e if k.startswith("RESTART_") and isInt(trimPrefix("RESTART_", k))]
     
     for i, j in sorted(jobs):
         job = parseJob(j)
@@ -115,7 +116,7 @@ def parseJob(j):
     j = j.lstrip()
 
     # If this looks like an assignment, then handle it and go
-    m = re.match(r'\w+\s*=', j)
+    m = re.match(r'[a-zA-Z]\w*\s*=', j)
     if m is not None:
         k, v = j.split('=', 2)
         job.assign = (k, v)
@@ -142,15 +143,14 @@ def parseJob(j):
         return job
     
     # Parse the timespec
-    rest = parseTimespec(job, j)
+    j = parseTimespec(job, j)
     
     # This only leaves the command.
-    pct = rest.find('%')
-    if pct >= 0:
-        job.cmd = rest[:pct]
-        job.input = rest[pct+1:]
-    else:
-        job.cmd = rest.strip()
+    job.cmd, job.input = splitInput(j)
+    
+    if not job.cmd.strip():
+        # Nothing here!
+        return None
     
     return job
 
@@ -223,6 +223,23 @@ def parseTimespec(job, line):
     
     job.timespec, rest = takeFields(line, N)
     return rest
+
+def splitInput(line):
+    i = 0
+    bslash = False
+    while i < len(line):
+        c = line[i]
+        if bslash:
+            bslash = False
+        elif c == '\\':
+            bslash = True
+        elif c == '%':
+            # Start of input!
+            return line[:i].strip(), line[i+1:].replace('%', '\n')
+        i += 1
+    
+    # We didn't find input character.
+    return line.strip(), None
 
 def takeFields(line, n):
     line = line.lstrip()
