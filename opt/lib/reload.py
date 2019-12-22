@@ -2,30 +2,35 @@
 import subprocess
 import parser
 
-def main():
-    containers = parser.parseJobs()
-    crontab, lirefs = generateCrontab(containers)
-    return installCrontab(crontab, lirefs)
+RUN_JOB = "/opt/lib/runjob.py"
 
-def generateCrontab(containers):
+def main():
+    cfg = parser.parse_crontab()
+    crontab, lirefs = generate_crontab(cfg)
+    return install_crontab(crontab, lirefs)
+
+def generate_crontab(cfg):
     output = []
     lirefs = {}
-    for c in containers.containers:
+    for c in cfg.containers:
         output.append("# Container {name}".format(name=c.name))
-        for coll in [c.jobs, c.start_jobs, c.restart_jobs]:
+        colls = [c.start_jobs, c.restart_jobs]
+        if c.running:
+            colls.append(c.jobs)
+        for coll in colls:
             if len(coll) == 0: continue
 
             output.append("!reset,stdout(true)")
             for j in coll:
-                if not filterOptions(j):
+                if not filter_options(j):
                     continue
                 
-                output.append(j.serialize(c))
+                output.append(serialize_job(j, c))
                 lirefs[len(output)] = j
 
     return output, lirefs
 
-def filterOptions(job):
+def filter_options(job):
     for opt in ['n', 'nice', 'runas']:
         if opt in job.options:
             del job.options[opt]
@@ -34,7 +39,33 @@ def filterOptions(job):
             return False
     return True
 
-def installCrontab(crontab, lirefs):
+def serialize_job(job, container):
+    if job.prefix == '!':
+        return job.prefix + serialize_options(job.options)
+    
+    if job.assign is not None:
+        return "{} = {}".format(job.assign[0], job.assign[1])
+    
+    s = "{prefix}{options} {timespec} {run} {name} ".format(
+        prefix=job.prefix,
+        options=serialize_options(job.options),
+        timespec=job.timespec,
+        run=RUN_JOB,
+        name=container.name)
+
+    if job.start:
+        s += "start"
+    elif job.restart:
+        s += "restart"
+    else:
+        s += "job " + job.jobhash()
+    
+    return s
+
+def serialize_options(opts):
+    return ','.join(('{name}({value})' if v is not None else '{name}').format(name=k, value=v) for k, v in opts.items())
+
+def install_crontab(crontab, lirefs):
     contents = '\n'.join(crontab) + '\n'
 
     print("Installing contents:")
