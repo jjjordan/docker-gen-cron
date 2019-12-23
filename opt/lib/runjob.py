@@ -1,23 +1,33 @@
 #!/usr/bin/python3
 import json
+import logging
 import os
 import subprocess
 import sys
 import time
 
 import parser
+import logconfig
 
 DOCKER = "/usr/local/bin/docker"
+logger = logging.getLogger("runjob")
 
 def main(container_name, action, jobid = None):
-    print("RUNNING: {action} -> {container_name}".format(action=action, container_name=container_name))
+    if not wait_for_jobs():
+        logger.critical("Cannot load jobs file, aborting")
+        return False
+    
+    cfg = parser.parse_crontab()
+    logconfig.setLevel(cfg)
+    
     if action == 'start':
         return start_container(container_name)
     elif action == 'restart':
         return restart_container(container_name)
     elif action == 'job':
-        return run_job(container_name, jobid)
-    print("Invalid arguments")
+        return run_job(cfg, container_name, jobid)
+
+    logger.error("Invalid arguments")
     return False
 
 def start_container(name):
@@ -25,7 +35,7 @@ def start_container(name):
     if status in ('exited',):
         p = subprocess.run([DOCKER, "start", name], stdin=subprocess.DEVNULL, stdout=1, stderr=2)
         sys.exit(p.returncode)
-    print("Container is running, won't stop")
+    logger.warning("Container is running, won't stop")
     return False
 
 def restart_container(name):
@@ -33,7 +43,7 @@ def restart_container(name):
     if status == 'running':
         p = subprocess.run([DOCKER, "restart", name], stdin=subprocess.DEVNULL, stdout=1, stderr=2)
         sys.exit(p.returncode)
-    print("Container is not running, won't restart")
+    logger.warning("Container is not running, won't restart")
     return False
 
 def container_status(name):
@@ -44,16 +54,13 @@ def container_status(name):
     else:
         return None
 
-def run_job(name, id):
-    if not wait_for_jobs():
-        print("Can't load jobs file, aborting")
-        return False
-
-    cfg = parser.parse_crontab()
+def run_job(cfg, name, id):
     job = find_job(cfg, name, id)
     if not job:
-        print("Can't find job, aborting")
+        logger.error("Can't find job, aborting")
         return False
+
+    logger.info("### Command: {}".format(job.job.cmd))
     
     cmdline = [DOCKER, "exec", "-i"]
     if "runas" in job.options:

@@ -1,11 +1,16 @@
 #!/usr/bin/python3
+import logging
 import subprocess
+
 import parser
+import logconfig
 
 RUN_JOB = "/opt/lib/runjob.py"
+logger = logging.getLogger("reload")
 
 def main():
     cfg = parser.parse_crontab()
+    logconfig.setLevel(cfg)
     crontab, lirefs = generate_crontab(cfg)
     return install_crontab(crontab, lirefs)
 
@@ -68,29 +73,29 @@ def serialize_options(opts):
 def install_crontab(crontab, lirefs):
     contents = '\n'.join(crontab) + '\n'
 
-    print("Installing contents:")
-    print(contents)
+    logger.debug("Installing contents:")
+    logger.debug(contents)
 
     # Get current crontab
     proc = subprocess.run(["fcrontab", "-l"], text=True, capture_output=True)
     if proc.returncode != 0:
-        print("fcrontab -l failed:")
-        print(proc.stderr)
+        logger.error("fcrontab -l failed:")
+        logger.error(proc.stderr)
         return False
     
     # Compare
     if proc.stdout == contents:
-        print("Crontab up-to-date, no change needed")
+        logger.info("Crontab up-to-date, no change needed")
         return True
     
     # Update
     proc = subprocess.run(["fcrontab", "-"], input=contents, capture_output=True, text=True)
     if proc.returncode != 0:
-        print("Failed to install crontab:")
-        print(proc.stderr)
+        logger.error("Failed to install crontab:")
+        logger.error(proc.stderr)
         return False
     
-    print("Crontab updated")
+    logger.info("Crontab updated")
     return True
 
 if __name__ == '__main__':

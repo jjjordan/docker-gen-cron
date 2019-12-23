@@ -1,19 +1,22 @@
 from collections import OrderedDict
 import hashlib
 import json
+import logging
 import re
 
 JOB_FILE = "/var/run/jobs.json"
+logger = logging.getLogger("parser")
 
 class CronTab:
     def __init__(self):
         self.containers = []
+        self.environment = {}
 
 class Container:
     def __init__(self):
-        self.id = None
         self.name = None
         self.running = False
+        self.options = {}
         self.jobs = []
         self.start_jobs = []
         self.restart_jobs = []
@@ -52,18 +55,23 @@ def parse_crontab():
             continue
 
         container = Container()
-        container.id = cj["id"]
         container.name = cj["name"]
         container.running = cj["running"]
         parse_container(container, kvs)
         result.containers.append(container)
     
+    keys = ["DOCKER_GEN_CRON_DEBUG"]
+    result.environment = {k: v for k, v in j["env"].items() if k in keys}
+
+    result.containers.sort(key=lambda c: c.name)
+
     return result
 
 def parse_container(c, e):
     jobs = [(int(k), v) for k, v in e if is_int(k)]
     startJobs = [(int(trim_prefix("START_", k)), v) for k, v in e if k.startswith("START_") and is_int(trim_prefix("START_", k))]
     restartJobs = [(int(trim_prefix("RESTART_", k)), v) for k, v in e if k.startswith("RESTART_") and is_int(trim_prefix("RESTART_", k))]
+    c.options = {k: v for k, v in e if not is_int(k) and not k.startswith("START_") and not k.startswith("RESTART_")}
     
     for i, j in sorted(jobs):
         job = parse_job(j)
@@ -90,13 +98,18 @@ def parse_job(j):
     j = j.lstrip()
 
     # Exit early for comments
-    if len(j) > 0 and j[0] == '#':
+    if j.startswith('#'):
         return None
     
     # If this looks like an assignment, then handle it and go
     m = re.match(r'[a-zA-Z]\w*\s*=', j)
     if m is not None:
         k, v = j.split('=', 2)
+        k = k.strip()
+        v = v.strip()
+        if v.startswith('"') and v.endswith('"'):
+            v = v[1:-1]
+
         job.assign = (k, v)
         return job
 
@@ -143,7 +156,7 @@ def parse_options(job, options):
             # We have an argument to consume.
             endParen = options.find(')', i)
             if endParen < 0:
-                print("Unmatched '('")
+                logger.warning("Unmatched '('")
                 return False
             job.options[options[i:nextParen]] = options[nextParen + 1:endParen]
             nextComma = options.find(',', endParen)

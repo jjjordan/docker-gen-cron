@@ -4,7 +4,7 @@
 echo ==== Installing prerequisite packages
 BUILD_PACKAGES="build-essential wget"
 RUN_PACKAGES="tini ca-certificates python3 msmtp elvis-tiny"
-apt-get update -y -qq || exit $?
+test -f /var/lib/apt/lists/lock || apt-get update -y -qq || exit $?
 apt-get install -y -qq $BUILD_PACKAGES $RUN_PACKAGES --no-install-recommends || exit $?
 
 cd /tmp
@@ -16,7 +16,7 @@ test -f $FCRON_TGZ || wget http://fcron.free.fr/archives/$FCRON_TGZ || exit $?
 tar xf $FCRON_TGZ || exit $?
 cd fcron-$FCRON_VERSION
 ./configure --with-sendmail=/usr/bin/msmtp || exit $?
-make || exit $?
+make -j || exit $?
 make install || exit $?
 cd /tmp
 
@@ -44,7 +44,7 @@ mv docker-gen /usr/local/bin || exit $?
 
 # Clean up
 chmod 755 /opt/bin/*
-chmod 755 /opt/lib/generate.py /opt/lib/siglisten.py /opt/lib/runjob.py
+chmod 755 /opt/lib/reload.py /opt/lib/runjob.py # /opt/lib/siglisten.py
 
 apt-get -y -qq purge $BUILD_PACKAGES
 apt-get -y -qq autoremove

@@ -1,10 +1,10 @@
-{{ $prefix := (printf "%s_" (coalesce .Env.FCRON_ENV_PREFIX "CRON")) }}
+{{ $prefix := (printf "%s_" (coalesce .Env.DOCKER_GEN_CRON_PREFIX "CRON")) }}
 {
   "containers": [
 {{ range $cid, $container := . }}
   {{/* This is an ugly hack because there's no contains or anyContains functions! */}}
   {{ if gt (len (closest (split $prefix "$") (json (keys $container.Env)))) 0 }}
-    { "id": {{ json $container.ID }}, "name": {{ json $container.Name }}, "running": {{ json $container.State.Running }},
+    { "name": {{ json $container.Name }}, "running": {{ json $container.State.Running }},
       "envs": [
     {{ range $envk, $envv := $container.Env }}
       {{ if hasPrefix $prefix $envk }}
