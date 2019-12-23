@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile.dev
     environment:
       TIMEZONE: America/Los_Angeles
-      FCRON_ENV_PREFIX: CRON_TESTING
+      FCRON_ENV_PREFIX: TEST_CRON
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
@@ -14,5 +14,10 @@ services:
     image: debian
     tty: true
     environment:
-      CRON_TESTING_0: ''
-      CRON_TESTING_1: '@daily echo Hello world!'
+      TEST_CRON_0: ''
+      TEST_CRON_1: '@daily touch /tmp/daily'
+      TEST_CRON_2: '*/1 * * * * touch /tmp/minutely'
+      TEST_CRON_3: '0 */1 * * * touch /tmp/hourly'
+      TEST_CRON_4: '&runas(irc) */1 * * * * touch /tmp/minutely.irc'
+
+      

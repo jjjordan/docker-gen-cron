@@ -33,7 +33,7 @@ class Job:
     
     def jobhash(self):
         m = hashlib.sha256()
-        m.update(b"{}\n".format(self.index))
+        m.update("{}\n".format(self.index).encode('utf-8'))
         m.update(self.cmd.encode('utf-8'))
         if self.input is not None:
             m.update(b"\n")

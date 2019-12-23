@@ -13,8 +13,8 @@ chown root:fcron /usr/local/etc/fcron.conf
 chmod 640 /usr/local/etc/fcron.conf
 
 mkdir -p /var/spool/fcron
-chown root:fcron /var/spool/fcron
-chmod 644 /var/spool/fcron
+chown fcron:fcron /var/spool/fcron
+chmod 770 /var/spool/fcron
 
 # Remove pidfiles
 rm -f /var/run/fcron.pid /var/run/fcron.fifo

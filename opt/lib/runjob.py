@@ -7,6 +7,8 @@ import time
 
 import parser
 
+DOCKER = "/usr/local/bin/docker"
+
 def main(container_name, action, jobid = None):
     print("RUNNING: {action} -> {container_name}".format(action=action, container_name=container_name))
     if action == 'start':
@@ -21,7 +23,7 @@ def main(container_name, action, jobid = None):
 def start_container(name):
     status = container_status(name)
     if status in ('exited',):
-        p = subprocess.run(["docker", "start", name], stdin=subprocess.DEVNULL, stdout=1, stderr=2)
+        p = subprocess.run([DOCKER, "start", name], stdin=subprocess.DEVNULL, stdout=1, stderr=2)
         sys.exit(p.returncode)
     print("Container is running, won't stop")
     return False
@@ -29,13 +31,13 @@ def start_container(name):
 def restart_container(name):
     status = container_status(name)
     if status == 'running':
-        p = subprocess.run(["docker", "restart", name], stdin=subprocess.DEVNULL, stdout=1, stderr=2)
+        p = subprocess.run([DOCKER, "restart", name], stdin=subprocess.DEVNULL, stdout=1, stderr=2)
         sys.exit(p.returncode)
     print("Container is not running, won't restart")
     return False
 
 def container_status(name):
-    p = subprocess.run(["docker", "inspect", name], stdin=subprocess.DEVNULL, capture_output=True, text=True)
+    p = subprocess.run([DOCKER, "inspect", name], stdin=subprocess.DEVNULL, capture_output=True, text=True)
     j = json.loads(p.stdout)
     if len(j) == 1:
         return j[0].get('State', {}).get('Status', None)
@@ -53,7 +55,7 @@ def run_job(name, id):
         print("Can't find job, aborting")
         return False
     
-    cmdline = ["docker", "exec", "-i"]
+    cmdline = [DOCKER, "exec", "-i"]
     if "runas" in job.options:
         cmdline += ["-u", job.options["runas"]]
     
