@@ -143,10 +143,6 @@ def parse_job(j):
     # This only leaves the command.
     job.cmd, job.input = split_input(j)
     
-    if not job.cmd.strip():
-        # Nothing here!
-        return None
-    
     return job
 
 def parse_options(job, options):
