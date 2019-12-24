@@ -1,12 +1,17 @@
+# This Dockerfile is used for development/testing. It mimics the normal one,
+# but creates an image roughly 3x the size. However, it is more tolerant of
+# incremental change. Changing one line in a script does not hit the network
+# or rebuild fcron as it would in the normal version.
 FROM debian:10.2-slim
 
+RUN apt-get update -y -qq \
+ && apt-get install -y -qq build-essential wget tini ca-certificates python3 msmtp elvis-tiny --no-install-recommends
+
 ENV FCRON_VERSION=3.2.1 \
-    DOCKER_VERSION=18.06.3-ce \
+    DOCKER_VERSION=19.03.5 \
     DOCKER_GEN_VERSION=0.7.4
 
-RUN apt-get update -y -qq \
- && apt-get install -y -qq build-essential wget tini ca-certificates python3 msmtp elvis-tiny --no-install-recommends \
- && cd /tmp \
+RUN cd /tmp \
  && wget http://fcron.free.fr/archives/fcron-$FCRON_VERSION.src.tar.gz \
  && wget https://download.docker.com/linux/static/stable/x86_64/docker-$DOCKER_VERSION.tgz \
  && wget https://github.com/jwilder/docker-gen/releases/download/$DOCKER_GEN_VERSION/docker-gen-linux-amd64-$DOCKER_GEN_VERSION.tar.gz
