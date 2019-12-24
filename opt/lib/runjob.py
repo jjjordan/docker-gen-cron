@@ -60,7 +60,7 @@ def run_job(cfg, name, id):
         logger.error("Can't find job, aborting")
         return False
 
-    logger.info("### Command: {}".format(job.job.cmd))
+    logger.info(">>> Command: {}".format(job.job.cmd))
     
     cmdline = [DOCKER, "exec", "-i"]
     if "runas" in job.options:
@@ -79,6 +79,7 @@ def run_job(cfg, name, id):
     cmdline.append("-c")
     cmdline.append(job.job.cmd)
     
+    logger.debug("Executing command: {}".format(repr(cmdline)))
     stdin = subprocess.PIPE if job.job.input is not None else subprocess.DEVNULL
     proc = subprocess.Popen(cmdline, stdin=stdin, stdout=1, stderr=2)
     proc.communicate(job.job.input)

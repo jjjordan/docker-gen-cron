@@ -4,7 +4,7 @@ def setDefault():
     root = logging.getLogger()
     root.setLevel(logging.INFO)
     ch = logging.StreamHandler()
-    fmt = logging.Formatter('%(asctime)s[%(levelname)s:%(name)s] %(message)s')
+    fmt = logging.Formatter(fmt='%(asctime)s %(levelname)s [%(name)s] %(message)s', datefmt='%m/%d/%Y %H:%M:%S')
     ch.setFormatter(fmt)
     root.addHandler(ch)
 

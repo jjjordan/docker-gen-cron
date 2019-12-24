@@ -23,6 +23,7 @@ class Container:
 
 class Job:
     def __init__(self):
+        self.container = None
         self.index = 0
         self.orig = ""
         self.options = OrderedDict()
@@ -76,17 +77,20 @@ def parse_container(c, e):
     for i, j in sorted(jobs):
         job = parse_job(j)
         if job is not None:
+            job.container = c
             job.index = i
             c.jobs.append(job)
     for i, j in sorted(startJobs):
         job = parse_job(j)
         if job is not None:
+            job.container = c
             job.index = i
             job.start = True
             c.start_jobs.append(job)
     for i, j in sorted(restartJobs):
         job = parse_job(j)
         if job is not None:
+            job.container = c
             job.index = i
             job.restart = True
             c.restart_jobs.append(job)

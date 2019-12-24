@@ -20,5 +20,9 @@ services:
       TEST_CRON_2: '*/1 * * * * touch /tmp/minutely'
       TEST_CRON_3: '0 */1 * * * touch /tmp/hourly'
       TEST_CRON_4: '&runas(irc) */1 * * * * touch /tmp/minutely.irc'
+      TEST_CRON_5: 'This is a big steaming load of garbage'
+      TEST_CRON_6: 'VAR1 = "foo"'
+      TEST_CRON_7: 'VAR2=bar'
+      TEST_CRON_8: '*/1 * * * * export >/tmp/vars'
 
-      
+
