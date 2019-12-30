@@ -1,4 +1,3 @@
-from collections import OrderedDict
 import hashlib
 import json
 import logging
@@ -26,7 +25,7 @@ class Job:
         self.container = None
         self.index = 0
         self.orig = ""
-        self.options = OrderedDict()
+        self.options = Options()
         self.assign = None
         self.prefix = ""
         self.timespec = ""
@@ -43,6 +42,55 @@ class Job:
             m.update(b"\n")
             m.update(self.input.encode('utf-8'))
         return m.hexdigest()[0:10]
+
+    def has_option(self, *options):
+        return self.options.has_any(*options)
+
+class Options:
+    def __init__(self):
+        self._items = []
+
+    def __getitem__(self, key):
+        for i in range(len(self._items) - 1, -1, -1):
+            if self._items[i][0] == key:
+                return self._items[i][1]
+        raise KeyError
+
+    def __setitem__(self, key, value):
+        for i in range(len(self._items) - 1, -1, -1):
+            if self._items[i][0] == key:
+                self._items[i] = (key, value)
+                return
+        self._items.append((key, value))
+
+    def __delitem__(self, key):
+        for i in range(len(self._items) - 1, -1, -1):
+            if self._items[i][0] == key:
+                self._items.pop(i)
+
+    def __iter__(self):
+        return self._items.map(lambda x: x[0])
+
+    def __contains__(self, key):
+        for k, v in self._items:
+            if k == key:
+                return True
+        return False
+
+    def __repr__(self):
+        return repr({k: v for k, v in self._items})
+
+    def __len__(self):
+        return len(self._items)
+
+    def items(self):
+        return self._items[:]
+
+    def has_any(self, *options):
+        for opt in options:
+            if opt in self:
+                return True
+        return False
 
 def parse_crontab():
     with open(JOB_FILE, "r") as f:
@@ -177,32 +225,32 @@ def parse_options(job, options):
 def parse_timespec(job, line):
     # Parse the timespec.  The prefix and options determine how many fields it should contain.
     if job.prefix == '%':
-        if has_option(job, "hourly", "midhourly"):
+        if job.has_option("hourly", "midhourly"):
             # minutes
             N = 1
-        elif has_option(job, "daily", "middaily", "nightly", "weekly", "midweekly"):
+        elif job.has_option("daily", "middaily", "nightly", "weekly", "midweekly"):
             # minutes, hours
             N = 2
-        elif has_option(job, "monthly", "midmonthly"):
+        elif job.has_option("monthly", "midmonthly"):
             # minutes, hours, days
             N = 3
         else:
             # "normal" entry
             N = 5
     elif job.prefix == '@':
-        if has_option(job, "reboot", "resume", "yearly", "annually", "midnight"):
+        if job.has_option("reboot", "resume", "yearly", "annually", "midnight"):
             # These can only ever be replacements
             N = 0
-        elif has_option(job, "monthly", "weekly", "daily", "hourly") and len(job.options) == 1:
+        elif job.has_option("monthly", "weekly", "daily", "hourly") and len(job.options) == 1:
             # If it's the only option, then zero fields.
             N = 0
-        elif has_option(job, "hourly", "midhourly"):
+        elif job.has_option("hourly", "midhourly"):
             # minutes
             N = 1
-        elif has_option(job, "daily", "middaily", "nightly", "weekly", "midweekly"):
+        elif job.has_option("daily", "middaily", "nightly", "weekly", "midweekly"):
             # minutes, hours
             N = 2
-        elif has_option(job, "monthly", "midmonthly"):
+        elif job.has_option("monthly", "midmonthly"):
             # minutes, hours, days
             N = 3
         else:
@@ -244,12 +292,6 @@ def take_fields(line, n):
             i += 1
 
     return line[:i].rstrip(), line[i:]
-
-def has_option(job, *options):
-    for opt in options:
-        if opt in job.options:
-            return True
-    return False
 
 def trim_prefix(pfx, s):
     return s[len(pfx):] if s.startswith(pfx) else s

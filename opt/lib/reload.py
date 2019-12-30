@@ -44,7 +44,7 @@ def filter_options(job):
         if job.assign[0] == 'SHELL':
             return False
     
-    if job.prefix == '@' and optcount > 1 and len(job.options) == 1 and parser.has_option(job, 'monthly', 'weekly', 'daily', 'hourly'):
+    if job.prefix == '@' and optcount > 1 and len(job.options) == 1 and job.has_option('monthly', 'weekly', 'daily', 'hourly'):
         # Corner-case: we've removed options and changed the meaning of the options from
         # proper fcron options to Vixie cron-compatible shortcuts, which changes the number
         # of expected arguments in the timespec.  We need to add something back so we don't
