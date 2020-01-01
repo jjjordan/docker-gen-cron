@@ -2,7 +2,7 @@
 
 # Install prerequisites
 echo ==== Installing prerequisite packages
-BUILD_PACKAGES="build-essential wget"
+BUILD_PACKAGES="build-essential wget python3-pip python3-setuptools"
 RUN_PACKAGES="tini ca-certificates python3 msmtp elvis-tiny"
 test -f /var/lib/apt/lists/lock || apt-get update -y -qq || exit $?
 apt-get install -y -qq $BUILD_PACKAGES $RUN_PACKAGES --no-install-recommends || exit $?
@@ -41,6 +41,9 @@ DOCKER_GEN_TGZ=docker-gen-linux-$ARCH-$DOCKER_GEN_VERSION.tar.gz
 test -f $DOCKER_GEN_TGZ || wget https://github.com/jwilder/docker-gen/releases/download/$DOCKER_GEN_VERSION/$DOCKER_GEN_TGZ || exit $?
 tar xf $DOCKER_GEN_TGZ || exit $?
 mv docker-gen /usr/local/bin || exit $?
+
+echo === Installing python requirements
+pip3 install -r /opt/lib/requirements.txt || exit $?
 
 # Clean up
 chmod 755 /opt/bin/*

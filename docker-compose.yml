@@ -24,5 +24,6 @@ services:
       TEST_CRON_6: 'VAR1 = "foo"'
       TEST_CRON_7: 'VAR2=bar'
       TEST_CRON_8: '*/1 * * * * export >/tmp/vars'
+      TEST_CRON_START_0: '@ 1d'
 
 

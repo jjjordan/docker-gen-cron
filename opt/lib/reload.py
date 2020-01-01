@@ -29,9 +29,10 @@ def generate_crontab(cfg):
             for j in coll:
                 if not filter_options(j):
                     continue
-                
-                output.append(serialize_job(j, c))
-                lirefs[len(output)] = j
+
+                if not parser.is_empty(j):
+                    output.append(serialize_job(j, c))
+                    lirefs[len(output)] = j
 
     return output, lirefs
 
@@ -43,23 +44,23 @@ def filter_options(job):
     if job.assign is not None:
         if job.assign[0] == 'SHELL':
             return False
-    
+
     if job.prefix == '@' and optcount > 1 and len(job.options) == 1 and job.has_option('monthly', 'weekly', 'daily', 'hourly'):
         # Corner-case: we've removed options and changed the meaning of the options from
         # proper fcron options to Vixie cron-compatible shortcuts, which changes the number
         # of expected arguments in the timespec.  We need to add something back so we don't
         # confuse the parser.
         job.options['n'] = '0'
-    
+
     return True
 
 def serialize_job(job, container):
     if job.prefix == '!':
         return job.prefix + serialize_options(job.options)
-    
+
     if job.assign is not None:
-        return "{} = {}".format(job.assign[0], job.assign[1])
-    
+        return '{}="{}"'.format(job.assign[0], job.assign[1])
+
     s = "{prefix}{options} {timespec} {run} {name} ".format(
         prefix=job.prefix,
         options=serialize_options(job.options),
@@ -73,8 +74,8 @@ def serialize_job(job, container):
         s += "restart"
     else:
         s += "job " + job.jobhash()
-    
-    return s
+
+    return s.lstrip()
 
 def serialize_options(opts):
     return ','.join(('{name}({value})' if v is not None else '{name}').format(name=k, value=v) for k, v in opts.items())
@@ -94,12 +95,12 @@ def install_crontab(crontab, lirefs):
             logger.debug("fcrontab -l stdout:\n" + proc.stdout)
         if len(proc.stderr) > 0:
             logger.debug("fcrontab -l stderr:\n" + proc.stderr)
-    
+
     # Compare
     if proc.stdout == contents:
         logger.info("Crontab up-to-date, no change needed")
         return True
-    
+
     # Update
     proc = subprocess.run(["fcrontab", "-"], input=contents, capture_output=True, text=True)
     if proc.returncode != 0:
@@ -110,7 +111,7 @@ def install_crontab(crontab, lirefs):
             logger.debug("fcrontab - stdout:\n" + proc.stdout)
         if len(proc.stderr) > 0:
             logger.debug("fcrontab - stderr:\n" + proc.stderr)
-    
+
     # Warn about syntax errors
     for line in proc.stderr.split('\n'):
         if ': Syntax error:' in line:
@@ -128,7 +129,7 @@ def install_crontab(crontab, lirefs):
                     logger.warning("Syntax error in auto-generated section:\n" + crontab[num - 1])
             else:
                 logger.warning("Unexpected syntax error output:\n" + line)
-    
+
     logger.info("Crontab updated")
     return True
 

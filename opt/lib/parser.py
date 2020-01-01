@@ -33,7 +33,7 @@ class Job:
         self.input = None
         self.start = False
         self.restart = False
-    
+
     def jobhash(self):
         m = hashlib.sha256()
         m.update("{}\n".format(self.index).encode('utf-8'))
@@ -95,7 +95,9 @@ class Options:
 def parse_crontab():
     with open(JOB_FILE, "r") as f:
         j = json.load(f)
-    
+    return parse_crontab_json(j)
+
+def parse_crontab_json(j):
     result = CronTab()
     for cj in j["containers"]:
         if cj is None: continue
@@ -108,7 +110,7 @@ def parse_crontab():
         container.running = cj["running"]
         parse_container(container, kvs)
         result.containers.append(container)
-    
+
     keys = ["DOCKER_GEN_CRON_DEBUG"]
     result.environment = {k: v for k, v in j["env"].items() if k in keys}
 
@@ -121,27 +123,30 @@ def parse_container(c, e):
     startJobs = [(int(trim_prefix("START_", k)), v) for k, v in e if k.startswith("START_") and is_int(trim_prefix("START_", k))]
     restartJobs = [(int(trim_prefix("RESTART_", k)), v) for k, v in e if k.startswith("RESTART_") and is_int(trim_prefix("RESTART_", k))]
     c.options = {k: v for k, v in e if not is_int(k) and not k.startswith("START_") and not k.startswith("RESTART_")}
-    
+
     for i, j in sorted(jobs):
         job = parse_job(j)
         if job is not None:
             job.container = c
             job.index = i
-            c.jobs.append(job)
+            if not is_empty(job):
+                c.jobs.append(job)
     for i, j in sorted(startJobs):
         job = parse_job(j)
         if job is not None:
             job.container = c
             job.index = i
             job.start = True
-            c.start_jobs.append(job)
+            if not is_empty(job):
+                c.start_jobs.append(job)
     for i, j in sorted(restartJobs):
         job = parse_job(j)
         if job is not None:
             job.container = c
             job.index = i
             job.restart = True
-            c.restart_jobs.append(job)
+            if not is_empty(job):
+                c.restart_jobs.append(job)
 
 def parse_job(j):
     job = Job()
@@ -152,7 +157,7 @@ def parse_job(j):
     # Exit early for comments
     if j.startswith('#'):
         return None
-    
+
     # If this looks like an assignment, then handle it and go
     m = re.match(r'[a-zA-Z]\w*\s*=', j)
     if m is not None:
@@ -169,7 +174,7 @@ def parse_job(j):
     if len(j) > 0 and j[0] in "%@!&":
         job.prefix = j[0]
         j = j[1:]
-    
+
     # Find end of options
     m = re.match(r'(([a-zA-Z][a-zA-Z0-9]+)(\([^\)\s]+\))?,)*([a-zA-Z][a-zA-Z0-9]+)(\([^\)\s]+\))?', j)
     if m is not None:
@@ -180,17 +185,17 @@ def parse_job(j):
             # error
             return None
         j = j[last:]
-    
+
     if job.prefix == '!':
         # Options set only, we're done.
         return job
-    
+
     # Parse the timespec
     j = parse_timespec(job, j)
-    
+
     # This only leaves the command.
     job.cmd, job.input = split_input(j)
-    
+
     return job
 
 def parse_options(job, options):
@@ -199,7 +204,7 @@ def parse_options(job, options):
         nextComma = options.find(',', i)
         nextParen = options.find('(', i)
         arg = None
-        
+
         if nextParen >= 0 and ((nextComma >= 0 and nextParen < nextComma) or (nextComma < 0)):
             # We have an argument to consume.
             endParen = options.find(')', i)
@@ -259,9 +264,22 @@ def parse_timespec(job, line):
     else:
         # This should be a "normal" entry.
         N = 5
-    
+
     job.timespec, rest = take_fields(line, N)
     return rest
+
+def is_empty(job):
+    if job.assign is not None:
+        return False
+    if job.prefix == '!' and len(job.options) > 0:
+        return False
+    if len(job.options) == 0 and not job.timespec:
+        return True
+    if job.start or job.restart:
+        return False
+    if job.cmd:
+        return False
+    return True
 
 def split_input(line):
     i = 0
@@ -276,7 +294,7 @@ def split_input(line):
             # Start of input!
             return line[:i].strip(), line[i+1:].replace('%', '\n')
         i += 1
-    
+
     # We didn't find input character.
     return line.strip(), None
 

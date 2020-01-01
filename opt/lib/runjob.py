@@ -16,10 +16,10 @@ def main(container_name, action, jobid = None):
     if not wait_for_jobs():
         logger.critical("Cannot load jobs file, aborting")
         return False
-    
+
     cfg = parser.parse_crontab()
     logconfig.setLevel(cfg)
-    
+
     if action == 'start':
         return start_container(container_name)
     elif action == 'restart':
@@ -55,42 +55,47 @@ def container_status(name):
         return None
 
 def run_job(cfg, name, id):
-    job = find_job(cfg, name, id)
-    if not job:
+    jobcfg = find_job(cfg, name, id)
+    if not jobcfg:
         logger.error("Can't find job, aborting")
         return False
 
-    logger.info(">>> Command: {}".format(job.job.cmd))
-    
+    logger.info(">>> Command: {}".format(jobcfg.job.cmd))
+    cmdline = get_command(jobcfg, os.environ)
+
+    logger.debug("Executing command: {}".format(repr(cmdline)))
+    stdin = subprocess.PIPE if jobcfg.job.input is not None else subprocess.DEVNULL
+    proc = subprocess.Popen(cmdline, stdin=stdin, stdout=1, stderr=2)
+    proc.communicate(jobcfg.job.input)
+    return proc.returncode
+
+def get_command(jobcfg, env):
     cmdline = [DOCKER, "exec", "-i"]
-    if "runas" in job.options:
-        cmdline += ["-u", job.options["runas"]]
-    
-    for k in job.env:
-        cmdline += ["-e", "{}={}".format(k, os.environ.get(k, ""))]
-    
-    cmdline.append(name)
-    
-    if job.shell is not None:
-        cmdline.append(job.shell)
+    if "runas" in jobcfg.options:
+        cmdline += ["-u", jobcfg.options["runas"]]
+
+    for k in jobcfg.env:
+        cmdline += ["-e", "{}={}".format(k, env.get(k, ""))]
+
+    cmdline.append(jobcfg.container)
+
+    if jobcfg.shell is not None:
+        cmdline.append(jobcfg.shell)
     else:
         cmdline.append("/bin/sh")
-    
+
     cmdline.append("-c")
-    cmdline.append(job.job.cmd)
-    
-    logger.debug("Executing command: {}".format(repr(cmdline)))
-    stdin = subprocess.PIPE if job.job.input is not None else subprocess.DEVNULL
-    proc = subprocess.Popen(cmdline, stdin=stdin, stdout=1, stderr=2)
-    proc.communicate(job.job.input)
-    sys.exit(proc.returncode)
+    cmdline.append(jobcfg.job.cmd)
+
+    return cmdline
 
 def find_job(config, container_name, id):
     for container in config.containers:
         if container.name != container_name:
             continue
-        
+
         cfg = JobConfig()
+        cfg.container = container_name
         for job in container.jobs:
             if job.assign is not None:
                 if job.assign[0] == 'SHELL':
@@ -103,17 +108,18 @@ def find_job(config, container_name, id):
                 cfg.add_options(job.options)
                 cfg.job = job
                 return cfg
-        
+
         return None
     return None
 
 class JobConfig:
     def __init__(self):
+        self.container = None
         self.env = {}
         self.options = {}
         self.shell = None
         self.job = None
-    
+
     def add_options(self, options):
         for k, v in options.items():
             if k == 'reset':
@@ -131,4 +137,12 @@ def wait_for_jobs():
     return False
 
 if __name__ == '__main__':
-    sys.exit(0 if main(*sys.argv[1:]) else 1)
+    if len(sys.argv) >= 3 and sys.argv[1] == '-c':
+        import shlex
+        args = shlex.split(sys.argv[2])
+        res = main(*args)
+    else:
+        res = main(*sys.argv[1:])
+    if isinstance(res, int):
+        sys.exit(res)
+    sys.exit(0 if res else 1)
