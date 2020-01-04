@@ -74,6 +74,16 @@ tests:
     - index: 0
       restart: true
       crontab: "@hourly <run> c restart"
+  - name: d
+    running: true
+    env:
+      CRON_0: "!jitter(5),nice(50),nolog"
+      CRON_1: "&mailfrom,nice(3) 1 1 * * * touch /tmp/something"
+    cases:
+    - index: 0
+      crontab: "!jitter(5),nolog"
+    - index: 1
+      crontab_prefix: "&mailfrom 1 1 * * *"
 - containers:
   - name: shortcuts_test
     running: true
