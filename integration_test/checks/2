@@ -1,0 +1,4 @@
+#!/bin/sh
+
+echo Check \"$EVAR\" = \"some value\"
+test "$EVAR" = "some value"

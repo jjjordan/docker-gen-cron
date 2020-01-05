@@ -34,7 +34,7 @@ def start_container(name):
     status = container_status(name)
     if status in ('exited',):
         p = subprocess.run([DOCKER, "start", name], stdin=subprocess.DEVNULL, stdout=1, stderr=2)
-        sys.exit(p.returncode)
+        return p.returncode
     logger.warning("Container is running, won't stop")
     return False
 
@@ -42,7 +42,7 @@ def restart_container(name):
     status = container_status(name)
     if status == 'running':
         p = subprocess.run([DOCKER, "restart", name], stdin=subprocess.DEVNULL, stdout=1, stderr=2)
-        sys.exit(p.returncode)
+        return p.returncode
     logger.warning("Container is not running, won't restart")
     return False
 
@@ -66,7 +66,7 @@ def run_job(cfg, name, id):
     logger.debug("Executing command: {}".format(repr(cmdline)))
     stdin = subprocess.PIPE if jobcfg.job.input is not None else subprocess.DEVNULL
     proc = subprocess.Popen(cmdline, stdin=stdin, stdout=1, stderr=2)
-    proc.communicate(jobcfg.job.input)
+    proc.communicate(jobcfg.job.input.encode('utf-8') if jobcfg.job.input is not None else None)
     return proc.returncode
 
 def get_command(jobcfg, env):
@@ -143,6 +143,6 @@ if __name__ == '__main__':
         res = main(*args)
     else:
         res = main(*sys.argv[1:])
-    if isinstance(res, int):
+    if type(res) == int:
         sys.exit(res)
     sys.exit(0 if res else 1)

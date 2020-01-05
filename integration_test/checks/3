@@ -1,0 +1,8 @@
+#!/usr/bin/python3
+import sys
+
+input = sys.stdin.read()
+if input == "line 1\nline 2\nline 3":
+    sys.exit(0)
+else:
+    sys.exit(1)
