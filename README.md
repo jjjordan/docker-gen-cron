@@ -63,8 +63,6 @@ services:
       CRON_1: '@ 1d daily-job.sh'
 ```
 
-Note you may want to consider `erroronlymail` because jobs will always have output (the runner will always output the commandline).
-
 ## References
 * [fcron](http://fcron.free.fr/) is the cron daemon used in this container.
   * [crontab format](http://fcron.free.fr/doc/en/fcrontab.5.html) manual page

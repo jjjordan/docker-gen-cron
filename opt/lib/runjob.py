@@ -60,7 +60,7 @@ def run_job(cfg, name, id):
         logger.error("Can't find job, aborting")
         return False
 
-    logger.info(">>> Command: {}".format(jobcfg.job.cmd))
+    logger.debug(">>> Command: {}".format(jobcfg.job.cmd))
     cmdline = get_command(jobcfg, os.environ)
 
     logger.debug("Executing command: {}".format(repr(cmdline)))
@@ -137,12 +137,17 @@ def wait_for_jobs():
     return False
 
 if __name__ == '__main__':
-    if len(sys.argv) >= 3 and sys.argv[1] == '-c':
+    args = sys.argv[1:]
+    if len(args) == 2 and args[0] == "-c":
         import shlex
-        args = shlex.split(sys.argv[2])
-        res = main(*args)
-    else:
-        res = main(*sys.argv[1:])
+        if "--" in args[1]:
+            # What comes after '--' may not parse.
+            args = shlex.split(args[1][:args[1].index("--")])
+        else:
+            args = shlex.split(args[1])
+    elif "--" in args:
+        args = args[:args.index("--")]
+    res = main(*args)
     if type(res) == int:
         sys.exit(res)
     sys.exit(0 if res else 1)

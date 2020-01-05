@@ -9,7 +9,7 @@ tests:
       CRON_3: "&runas(irc) */1 * * * * touch /tmp/minutely.irc"
       CRON_4: "VAR1=foo"
       CRON_5: 'VAR2 = "bar"'
-      CRON_6: "*/1 * * * * export"
+      CRON_6: "*/1 * * * * export >output"
       CRON_START_0: "@daily"
       CRON_RESTART_0: "@hourly"
     cases:
@@ -17,12 +17,15 @@ tests:
       crontab: ""
     - index: 1
       crontab_prefix: "@daily"
+      crontab_suffix: "-- touch /tmp/daily"
       docker: ["exec", "-i", "a", "/bin/sh", "-c", "touch /tmp/daily"]
     - index: 2
       crontab_prefix: "*/1 * * * *"
+      crontab_suffix: "-- touch /tmp/minutely"
       docker: ["exec", "-i", "a", "/bin/sh", "-c", "touch /tmp/minutely"]
     - index: 3
       crontab_prefix: "& */1 * * * *"
+      crontab_suffix: "-- touch /tmp/minutely.irc"
       docker: ["exec", "-i", "-u", "irc", "a", "/bin/sh", "-c", "touch /tmp/minutely.irc"]
     - index: 4
       crontab: 'VAR1="foo"'
@@ -30,7 +33,8 @@ tests:
       crontab: 'VAR2="bar"'
     - index: 6
       crontab_prefix: "*/1 * * * *"
-      docker: ["exec", "-i", "-e", "VAR1=foo", "-e", "VAR2=bar", "a", "/bin/sh", "-c", "export"]
+      crontab_suffix: "-- export >output"
+      docker: ["exec", "-i", "-e", "VAR1=foo", "-e", "VAR2=bar", "a", "/bin/sh", "-c", "export >output"]
     - index: 0
       start: true
       crontab: "@daily a start"
@@ -50,14 +54,17 @@ tests:
       crontab: ""
     - index: 1
       crontab_prefix: "@daily"
+      crontab_suffix: "-- touch /tmp/daily"
       docker: ["exec", "-i", "-u", "irc", "b", "/bin/sh", "-c", "touch /tmp/daily"]
     - index: 2
       crontab: ""
     - index: 3
       crontab_prefix: "@hourly"
+      crontab_suffix: "-- touch /tmp/hourly"
       docker: ["exec", "-i", "-u", "irc", "b", "/bin/ksh", "-c", "touch /tmp/hourly"]
     - index: 4
       crontab_prefix: "@reset 1d"
+      crontab_suffix: "-- touch /tmp/daily"
       docker: ["exec", "-i", "b", "/bin/sh", "-c", "touch /tmp/daily"]
   - name: c
     running: false
@@ -84,6 +91,7 @@ tests:
       crontab: "!jitter(5),nolog"
     - index: 1
       crontab_prefix: "&mailfrom 1 1 * * *"
+      crontab_suffix: "-- touch /tmp/something"
 - containers:
   - name: shortcuts_test
     running: true
@@ -97,14 +105,20 @@ tests:
     cases:
     - index: 0
       crontab_prefix: "%hourly 5"
+      crontab_suffix: "-- touch /tmp/foo"
     - index: 1
       crontab_prefix: "%daily 5 5"
+      crontab_suffix: "-- touch /tmp/foo"
     - index: 2
       crontab_prefix: "%monthly 5 5 5"
+      crontab_suffix: "-- touch /tmp/foo"
     - index: 3
       crontab_prefix: "@hourly,n(0) 5"
+      crontab_suffix: "-- touch /tmp/foo"
       docker: ["exec", "-i", "-u", "irc", "shortcuts_test", "/bin/sh", "-c", "touch /tmp/foo"]
     - index: 4
       crontab_prefix: "@daily,n(0) 5 5"
+      crontab_suffix: "-- touch /tmp/foo"
     - index: 5
       crontab_prefix: "@monthly,n(0) 5 5 5"
+      crontab_suffix: "-- touch /tmp/foo"

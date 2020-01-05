@@ -73,10 +73,37 @@ def serialize_job(job, container):
     else:
         s += "job " + job.jobhash()
 
+        sane_cmd = sanitize_cmd(job.cmd)
+        if sane_cmd:
+            s += " -- " + sane_cmd
+
     return s.lstrip()
 
 def serialize_options(opts):
     return ','.join(('{name}({value})' if v is not None else '{name}').format(name=k, value=v) for k, v in opts.items())
+
+# Can't have nice things (3.8) on debian ...
+#def sanitize_cmd(cmd):
+#    try:
+#        parts = shlex.split(cmd)
+#    except ValueErrore:
+#        logger.exception("Parsing cmd")
+#        return None
+#
+#    last = None
+#    for i, part in enumerate(parts):
+#        if any(x in part for x in ('\\', '>', '#', '"', "'", '--', '\n')):
+#            last = i
+#            break
+#    if last is not None:
+#        parts = parts[:last]
+#    return shlex.join(parts)
+
+def sanitize_cmd(cmd):
+    idxs = [cmd.index(c) for c in ('\\', '\n') if c in cmd]
+    if len(idxs) > 0:
+        cmd = cmd[:min(idxs)]
+    return cmd
 
 def install_crontab(crontab, lirefs):
     contents = '\n'.join(crontab) + '\n'

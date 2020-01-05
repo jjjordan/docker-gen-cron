@@ -40,12 +40,16 @@ class TestAll(unittest.TestCase):
                     expected = case.get("crontab_prefix", None)
                     if expected is not None:
                         expected += " %s job <hash>" % container["name"]
+                        suffix = case.get("crontab_suffix", None)
+                        if suffix is not None:
+                            expected += " " + suffix
                     else:
                         # Continue?
                         self.assertTrue(False, "cannot find crontab output")
 
                 if expected and not job:
                     self.assertTrue(False, "cannot find job")
+
                 self.assertEqual(massage_expected(expected, job), massage_crontab(line))
 
     def check_jobs(self, parsed, container):
