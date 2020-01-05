@@ -11,52 +11,57 @@ import runjob
 class TestAll(unittest.TestCase):
     def test_basic(self):
         self.run_tests("test_cases.yml")
-    
+
     def run_tests(self, file):
         path = os.path.realpath(os.path.dirname(__file__))
         with open(os.path.join(path, file), "r") as f:
             y = yaml.safe_load(f)
 
-        for test in y["tests"]:
-            j = convert_to_json(test["containers"])
-            
-            for container in test["containers"]:
-                p = parser.parse_crontab_json(j)
-                crontab, lirefs = reload.generate_crontab(p)
-                self.check_crontab(container, crontab, lirefs)
-                
-                # The above mutates the input, do it again
-                p = parser.parse_crontab_json(j)
-                self.check_jobs(p, container)
-    
+        for i, test in enumerate(y["tests"]):
+            with self.subTest(test=i):
+                j = convert_to_json(test["containers"])
+
+                for container in test["containers"]:
+                    with self.subTest(container=container['name']):
+                        p = parser.parse_crontab_json(j)
+                        crontab, lirefs = reload.generate_crontab(p)
+                        self.check_crontab(container, crontab, lirefs)
+
+                        # The above mutates the input, do it again
+                        p = parser.parse_crontab_json(j)
+                        self.check_jobs(p, container)
+
     def check_crontab(self, container, crontab, lirefs):
         for case in container["cases"]:
-            line, job = find_crontab_line(container, crontab, lirefs, case)
-            expected = case.get("crontab", None)
-            if expected is None:
-                expected = case.get("crontab_prefix", None)
-                if expected is not None:
-                    expected += " <run> %s job <hash>" % container["name"]
-                else:
-                    self.assertTrue(False, "cannot find crontab output for case {}".format(case["index"]))
+            with self.subTest(case=case["index"]):
+                line, job = find_crontab_line(container, crontab, lirefs, case)
+                expected = case.get("crontab", None)
+                if expected is None:
+                    expected = case.get("crontab_prefix", None)
+                    if expected is not None:
+                        expected += " <run> %s job <hash>" % container["name"]
+                    else:
+                        # Continue?
+                        self.assertTrue(False, "cannot find crontab output")
 
-            if expected and not job:
-                self.assertTrue(False, "cannot find job {}".format(case["index"]))
-            self.assertEqual(massage_expected(expected, job), massage_crontab(line), "Index {}".format(case["index"]))
-    
+                if expected and not job:
+                    self.assertTrue(False, "cannot find job")
+                self.assertEqual(massage_expected(expected, job), massage_crontab(line))
+
     def check_jobs(self, parsed, container):
         for case in container["cases"]:
             if "docker" not in case:
                 continue
 
-            job = find_parsed_job(parsed, container, case)
-            self.assertIsNotNone(job, "Cannot find job {}".format(case["index"]))
-            
-            jobcfg = runjob.find_job(parsed, container["name"], job.jobhash())
-            self.assertIsNotNone(jobcfg, "Cannot load job {}".format(case["index"]))
-            
-            cmdline = runjob.get_command(jobcfg, jobcfg.env)
-            self.assertEqual([runjob.DOCKER] + case["docker"], cmdline, case["index"])
+            with self.subTest(case=case["index"]):
+                job = find_parsed_job(parsed, container, case)
+                self.assertIsNotNone(job, "Cannot find job")
+
+                jobcfg = runjob.find_job(parsed, container["name"], job.jobhash())
+                self.assertIsNotNone(jobcfg, "Cannot load job")
+
+                cmdline = runjob.get_command(jobcfg, jobcfg.env)
+                self.assertEqual([runjob.DOCKER] + case["docker"], cmdline)
 
 def convert_to_json(containers):
     result = {"containers": [], "env": {}}
@@ -100,7 +105,7 @@ def massage_expected(expected, job):
 def massage_crontab(line):
     if line is None:
         return ""
-    
+
     # Remove duplicate spaces, but preserve any space at the beginning
     parts = line.split(' ')
     return ' '.join([parts[0]] + list(filter(lambda x: x != "", parts[1:])))
