@@ -8,18 +8,18 @@ echo Starting containers...
 id1=$(docker run \
 	-d -t \
 	-v $(pwd):/mnt \
-	-e "${PREFIX}_0=*/1 * * * * /mnt/run.py --test 0" \
-	-e "${PREFIX}_1=&runas(irc) */1 * * * * /mnt/run.py --test 1" \
+	-e "${PREFIX}_0=*/1 * * * * /mnt/helper.py --test 0" \
+	-e "${PREFIX}_1=&runas(irc) */1 * * * * /mnt/helper.py --test 1" \
 	-e "${PREFIX}_2=EVAR=some value" \
-	-e "${PREFIX}_3=*/1 * * * * /mnt/run.py --test 2" \
-	-e "${PREFIX}_4=*/1 * * * * /mnt/run.py --test 3 %line 1%line 2%line 3" \
-	python:3 /mnt/run.py --root 4)
+	-e "${PREFIX}_3=*/1 * * * * /mnt/helper.py --test 2" \
+	-e "${PREFIX}_4=*/1 * * * * /mnt/helper.py --test 3 %line 1%line 2%line 3" \
+	python:3 /mnt/helper.py --root 4)
 
 id2=$(docker run \
 	-d -t \
 	-v $(pwd):/mnt \
 	-e "${PREFIX}_RESTART_0=*/1 * * * *" \
-	python:3 /mnt/run.py --root restart)
+	python:3 /mnt/helper.py --root restart)
 
 onexit() {
 	echo ""
