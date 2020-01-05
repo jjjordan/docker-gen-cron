@@ -39,7 +39,7 @@ class TestAll(unittest.TestCase):
                 if expected is None:
                     expected = case.get("crontab_prefix", None)
                     if expected is not None:
-                        expected += " <run> %s job <hash>" % container["name"]
+                        expected += " %s job <hash>" % container["name"]
                     else:
                         # Continue?
                         self.assertTrue(False, "cannot find crontab output")
@@ -99,7 +99,7 @@ def find_parsed_job(parsed, container, case):
 def massage_expected(expected, job):
     if expected is None or job is None:
         return ""
-    expected = expected.replace("<run>", reload.RUN_JOB).replace("<hash>", job.jobhash())
+    expected = expected.replace("<hash>", job.jobhash())
     return massage_crontab(expected)
 
 def massage_crontab(line):

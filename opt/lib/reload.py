@@ -5,7 +5,6 @@ import subprocess
 import parser
 import logconfig
 
-RUN_JOB = "/opt/lib/runjob.py"
 logger = logging.getLogger("reload")
 
 def main():
@@ -61,11 +60,10 @@ def serialize_job(job, container):
     if job.assign is not None:
         return '{}="{}"'.format(job.assign[0], job.assign[1])
 
-    s = "{prefix}{options} {timespec} {run} {name} ".format(
+    s = "{prefix}{options} {timespec} {name} ".format(
         prefix=job.prefix,
         options=serialize_options(job.options),
         timespec=job.timespec,
-        run=RUN_JOB,
         name=container.name)
 
     if job.start:

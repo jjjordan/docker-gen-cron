@@ -33,10 +33,10 @@ tests:
       docker: ["exec", "-i", "-e", "VAR1=foo", "-e", "VAR2=bar", "a", "/bin/sh", "-c", "export"]
     - index: 0
       start: true
-      crontab: "@daily <run> a start"
+      crontab: "@daily a start"
     - index: 0
       restart: true
-      crontab: "@hourly <run> a restart"
+      crontab: "@hourly a restart"
   - name: b
     running: true
     env:
@@ -70,10 +70,10 @@ tests:
       crontab: ""
     - index: 0
       start: true
-      crontab: "@daily <run> c start"
+      crontab: "@daily c start"
     - index: 0
       restart: true
-      crontab: "@hourly <run> c restart"
+      crontab: "@hourly c restart"
   - name: d
     running: true
     env:
