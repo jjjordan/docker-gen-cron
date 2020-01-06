@@ -2,10 +2,10 @@
 # but creates an image roughly 3x the size. However, it is more tolerant of
 # incremental change. Changing one line in a script does not hit the network
 # or rebuild fcron as it would in the normal version.
-FROM debian:10.2-slim
+FROM alpine:3.11
 
-RUN apt-get update -y -qq \
- && apt-get install -y -qq build-essential wget tini ca-certificates python3 python3-pip python3-setuptools msmtp elvis-tiny --no-install-recommends
+RUN apk update \
+ && apk add --no-cache build-base perl shadow wget tini ca-certificates tzdata python3 msmtp
 
 ENV FCRON_VERSION=3.2.1 \
     DOCKER_VERSION=19.03.5 \
@@ -16,7 +16,7 @@ RUN cd /tmp \
  && wget https://download.docker.com/linux/static/stable/x86_64/docker-$DOCKER_VERSION.tgz \
  && wget https://github.com/jwilder/docker-gen/releases/download/$DOCKER_GEN_VERSION/docker-gen-linux-amd64-$DOCKER_GEN_VERSION.tar.gz
 
-ENTRYPOINT ["/usr/bin/tini", "/opt/bin/start.sh"]
+ENTRYPOINT ["/sbin/tini", "/opt/bin/start.sh"]
 COPY opt/lib/requirements.txt /opt/lib/requirements.txt
 RUN pip3 install -r /opt/lib/requirements.txt
 COPY opt/bin/runjob.c /opt/bin/runjob.c

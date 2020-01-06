@@ -10,7 +10,7 @@ services:
   cron:
     image: jjjordan/docker-gen-cron
     environment:
-      TIMEZONE: America/Los_Angeles
+      TZ: America/Los_Angeles
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
@@ -51,7 +51,7 @@ services:
   cron:
     image: jjjordan/docker-gen-cron
     environment:
-      TIMEZONE: America/Los_Angeles
+      TZ: America/Los_Angeles
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /etc/secret/msmtprc:/root/.msmtprc

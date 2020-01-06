@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     environment:
-      TIMEZONE: America/Los_Angeles
+      TZ: America/Los_Angeles
       PREFIX: TEST_CRON
       DEBUG: 1
     volumes:

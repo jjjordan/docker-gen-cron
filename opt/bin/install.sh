@@ -2,10 +2,10 @@
 
 # Install prerequisites
 echo ==== Installing prerequisite packages
-BUILD_PACKAGES="build-essential wget python3-pip python3-setuptools"
-RUN_PACKAGES="tini ca-certificates python3 msmtp elvis-tiny"
-test -f /var/lib/apt/lists/lock || apt-get update -y -qq || exit $?
-apt-get install -y -qq $BUILD_PACKAGES $RUN_PACKAGES --no-install-recommends || exit $?
+BUILD_PACKAGES="build-base wget perl shadow"
+RUN_PACKAGES="tini ca-certificates tzdata python3 msmtp"
+apk update
+apk add $BUILD_PACKAGES $RUN_PACKAGES || exit $?
 
 # Compile runjob
 echo ==== Compiling runjob wrapper
@@ -21,7 +21,7 @@ FCRON_TGZ=fcron-$FCRON_VERSION.src.tar.gz
 test -f $FCRON_TGZ || wget http://fcron.free.fr/archives/$FCRON_TGZ || exit $?
 tar xf $FCRON_TGZ || exit $?
 cd fcron-$FCRON_VERSION
-./configure --with-sendmail=/usr/bin/msmtp || exit $?
+./configure --with-sendmail=/usr/bin/msmtp --with-editor=/bin/ed || exit $?
 make -j || exit $?
 make install || exit $?
 cd /tmp
@@ -54,8 +54,7 @@ pip3 install -r /opt/lib/requirements.txt || exit $?
 # Clean up
 chmod 755 /opt/bin/*.sh /opt/lib/reload.py /opt/lib/runjob.py
 
-apt-get -y -qq purge $BUILD_PACKAGES
-apt-get -y -qq autoremove
-apt-get -y -qq clean
-rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+apk del $BUILD_PACKAGES
+rm -rf /tmp/* /var/tmp/*
+
 exit 0

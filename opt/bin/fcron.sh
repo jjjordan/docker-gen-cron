@@ -1,10 +1,10 @@
 #!/bin/sh
 
 # Set timezone
-if [ -n "$TIMEZONE" ]; then
+if [ -n "$TZ" ]; then
 	rm -f /etc/localtime
-	ln -fs /usr/share/zoneinfo/$TIMEZONE /etc/localtime || exit $?
-	dpkg-reconfigure -f noninteractive tzdata
+	cp /usr/share/zoneinfo/$TZ /etc/localtime || exit $?
+	echo $TZ > /etc/timezone
 fi
 
 # Setup requisite files
