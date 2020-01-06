@@ -122,3 +122,26 @@ tests:
     - index: 5
       crontab_prefix: "@monthly,n(0) 5 5 5"
       crontab_suffix: "-- touch /tmp/foo"
+- containers:
+  - name: newlines_test
+    running: true
+    env:
+      CRON_0: "abc=def\nghi"
+      CRON_1: "!lavg(1\n2)"
+      CRON_2: "* *\n* * * touch hello.txt"
+      CRON_3: "\n@daily backup.sh"
+      CRON_4: "* * * * * echo hello\nworld"
+    cases:
+    - index: 0
+      crontab: 'abc="def"'
+    - index: 1
+      crontab: "!lavg"
+    - index: 2
+      crontab: ""
+    - index: 3
+      crontab_prefix: "@daily"
+      crontab_suffix: "-- backup.sh"
+    - index: 4
+      crontab_prefix: "* * * * *"
+      crontab_suffix: "-- echo hello"
+      docker: ["exec", "-i", "-e", "abc=def", "newlines_test", "/bin/sh", "-c", "echo hello\nworld"]

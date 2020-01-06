@@ -158,13 +158,21 @@ def parse_job(j):
     if j.startswith('#'):
         return None
 
+    # Deal with any potential funny business here, which would likely always involve newlines.
+    # We'll add this back at the end after we've gotten past the point where stuff will be
+    # written back out nearly unchanged.
+    postlf = ''
+    if '\n' in j:
+        idx = j.index('\n')
+        postlf, j = j[idx:], j[:idx]
+
     # If this looks like an assignment, then handle it and go
     m = re.match(r'[a-zA-Z]\w*\s*=', j)
     if m is not None:
         k, v = j.split('=', 2)
         k = k.strip()
         v = v.strip()
-        if v.startswith('"') and v.endswith('"'):
+        if (v.startswith('"') and v.endswith('"')) or (v.startswith("'") and v.endswith("'")):
             v = v[1:-1]
 
         job.assign = (k, v)
@@ -191,10 +199,13 @@ def parse_job(j):
         return job
 
     # Parse the timespec
-    j = parse_timespec(job, j)
+    j, ok = parse_timespec(job, j)
+    if not ok:
+        # We didn't get enough fields.
+        return None
 
     # This only leaves the command.
-    job.cmd, job.input = split_input(j)
+    job.cmd, job.input = split_input(j + postlf)
 
     return job
 
@@ -265,8 +276,8 @@ def parse_timespec(job, line):
         # This should be a "normal" entry.
         N = 5
 
-    job.timespec, rest = take_fields(line, N)
-    return rest
+    job.timespec, rest, ok = take_fields(line, N)
+    return rest, ok
 
 def is_empty(job):
     if job.assign is not None:
@@ -301,15 +312,19 @@ def split_input(line):
 def take_fields(line, n):
     line = line.lstrip()
     i = 0
+    taken = 0
     for _ in range(n):
+        last = i
         # Read non-whitespace
         while i < len(line) and not line[i].isspace():
             i += 1
         # Read whitespace
         while i < len(line) and line[i].isspace():
             i += 1
+        if i > last:
+            taken += 1
 
-    return line[:i].rstrip(), line[i:]
+    return line[:i].rstrip(), line[i:], (taken == n)
 
 def trim_prefix(pfx, s):
     return s[len(pfx):] if s.startswith(pfx) else s
