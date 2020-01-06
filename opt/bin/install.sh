@@ -7,6 +7,12 @@ RUN_PACKAGES="tini ca-certificates python3 msmtp elvis-tiny"
 test -f /var/lib/apt/lists/lock || apt-get update -y -qq || exit $?
 apt-get install -y -qq $BUILD_PACKAGES $RUN_PACKAGES --no-install-recommends || exit $?
 
+# Compile runjob
+echo ==== Compiling runjob wrapper
+cd /opt/bin
+gcc -o runjob runjob.c -Wall -Os || exit $?
+chmod u+s runjob || exit $?
+
 cd /tmp
 
 # Install fcron
@@ -42,12 +48,11 @@ test -f $DOCKER_GEN_TGZ || wget https://github.com/jwilder/docker-gen/releases/d
 tar xf $DOCKER_GEN_TGZ || exit $?
 mv docker-gen /usr/local/bin || exit $?
 
-echo === Installing python requirements
+echo ==== Installing python requirements
 pip3 install -r /opt/lib/requirements.txt || exit $?
 
 # Clean up
-chmod 755 /opt/bin/*
-chmod 755 /opt/lib/reload.py /opt/lib/runjob.py # /opt/lib/siglisten.py
+chmod 755 /opt/bin/*.sh /opt/lib/reload.py /opt/lib/runjob.py
 
 apt-get -y -qq purge $BUILD_PACKAGES
 apt-get -y -qq autoremove

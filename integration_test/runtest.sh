@@ -25,20 +25,22 @@ onexit() {
 	echo ""
 	echo Exiting, cleaning up
 	docker kill $id1 $id2
-	while ! docker rm $id1 2>/dev/null; do
+	while docker inspect $id1 >/dev/null 2>&1 && ! docker rm $id1 2>/dev/null; do
 		echo docker rm failed, retrying
 		docker kill $id1
 	done
-	while ! docker rm $id2 2>/dev/null; do
+	while docker inspect $id2 >/dev/null 2>&1 && ! docker rm $id2 2>/dev/null; do
 		echo docker rm failed, retrying
 		docker kill $id2
 	done
 }
+
 onsig() {
 	trap - SIGHUP SIGINT SIGTERM
 	onexit
 	exit 1
 }
+
 trap onsig SIGHUP SIGINT SIGTERM
 trap onexit EXIT
 

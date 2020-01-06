@@ -6,6 +6,7 @@ import parser
 import logconfig
 
 logger = logging.getLogger("reload")
+USER = "nobody"
 
 def main():
     cfg = parser.parse_crontab()
@@ -111,15 +112,15 @@ def install_crontab(crontab, lirefs):
     logger.debug("Installing contents:\n" + contents)
 
     # Get current crontab
-    proc = subprocess.run(["fcrontab", "-l"], text=True, capture_output=True)
+    proc = subprocess.run(["fcrontab", "-l", USER], text=True, capture_output=True)
     if proc.returncode != 0:
-        logger.error("fcrontab -l failed:\n" + proc.stderr)
+        logger.error("fcrontab -l {} failed:\n{}".format(USER, proc.stderr))
         return False
     else:
         if len(proc.stdout) > 0:
-            logger.debug("fcrontab -l stdout:\n" + proc.stdout)
+            logger.debug("fcrontab -l {} stdout:\n{}".format(USER, proc.stdout))
         if len(proc.stderr) > 0:
-            logger.debug("fcrontab -l stderr:\n" + proc.stderr)
+            logger.debug("fcrontab -l {} stderr:\n{}".format(USER, proc.stderr))
 
     # Compare
     if proc.stdout == contents:
@@ -127,15 +128,15 @@ def install_crontab(crontab, lirefs):
         return True
 
     # Update
-    proc = subprocess.run(["fcrontab", "-"], input=contents, capture_output=True, text=True)
+    proc = subprocess.run(["fcrontab", "-", USER], input=contents, capture_output=True, text=True)
     if proc.returncode != 0:
-        logger.error("Failed to install crontab:\n" + proc.stderr)
+        logger.error("Failed to install crontab {}:\n{}".format(USER, proc.stderr))
         return False
     else:
         if len(proc.stdout) > 0:
-            logger.debug("fcrontab - stdout:\n" + proc.stdout)
+            logger.debug("fcrontab - {} stdout:\n{}".format(USER, proc.stdout))
         if len(proc.stderr) > 0:
-            logger.debug("fcrontab - stderr:\n" + proc.stderr)
+            logger.debug("fcrontab - {} stderr:\n{}".format(USER, proc.stderr))
 
     # Warn about syntax errors
     for line in proc.stderr.split('\n'):

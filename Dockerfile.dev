@@ -19,6 +19,7 @@ RUN cd /tmp \
 ENTRYPOINT ["/usr/bin/tini", "/opt/bin/start.sh"]
 COPY opt/lib/requirements.txt /opt/lib/requirements.txt
 RUN pip3 install -r /opt/lib/requirements.txt
+COPY opt/bin/runjob.c /opt/bin/runjob.c
 COPY opt/bin/install.sh /opt/bin/install.sh
 RUN /bin/sh /opt/bin/install.sh
 ADD opt /opt

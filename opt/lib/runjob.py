@@ -20,6 +20,8 @@ def main(container_name, action, jobid = None):
     cfg = parser.parse_crontab()
     logconfig.setLevel(cfg)
 
+    logger.debug("uid={uid}, gid={gid}, euid={euid}, egid={egid}".format(uid=os.getuid(), gid=os.getgid(), euid=os.geteuid(), egid=os.getegid()))
+
     if action == 'start':
         return start_container(container_name)
     elif action == 'restart':
