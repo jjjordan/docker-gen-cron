@@ -109,8 +109,6 @@ def sanitize_cmd(cmd):
 def install_crontab(crontab, lirefs):
     contents = '\n'.join(crontab) + '\n'
 
-    logger.debug("Installing contents:\n" + contents)
-
     # Get current crontab
     proc = subprocess.run(["fcrontab", "-l", USER], text=True, capture_output=True)
     if proc.returncode != 0:
@@ -126,6 +124,8 @@ def install_crontab(crontab, lirefs):
     if proc.stdout == contents:
         logger.info("Crontab up-to-date, no change needed")
         return True
+
+    logger.debug("Installing contents:\n\n{}\n".format(contents))
 
     # Update
     proc = subprocess.run(["fcrontab", "-", USER], input=contents, capture_output=True, text=True)

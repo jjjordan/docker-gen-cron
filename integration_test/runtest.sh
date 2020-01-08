@@ -53,22 +53,22 @@ ip2=$(ipaddr $id2)
 
 echo -n "Waiting for results.."
 
-while :
-do
+deadline=$(date -d '5 minutes' +%s)
+
+while [ "$(date +%s)" -lt $deadline ]; do
 	# https://superuser.com/questions/590099/can-i-make-curl-fail-with-an-exitcode-different-than-0-if-the-http-status-code-i
 	stat1=$(curl --silent --output /dev/null --write-out "%{http_code}" http://$ip1)
 	stat2=$(curl --silent --output /dev/null --write-out "%{http_code}" http://$ip2)
 
 	if [ "$stat1" -eq "200" ]; then
 		if [ "$stat2" -eq "200" ]; then
-			echo ""
-			echo "Success!"
+			printf "\n\033[32m>>> PASS <<<\033[0m\n"
 			exit 0
 		fi
 	fi
 
 	if [ "$stat1" -eq "500" ]; then
-		echo ""
+		printf "\n\033[31m>>> FAIL <<<\033[0m\n"
 		echo Container 1 failed
 		sleep 1
 		docker logs $id1
@@ -76,7 +76,7 @@ do
 	fi
 
 	if [ "$stat2" -eq "500" ]; then
-		echo ""
+		printf "\n\033[31m>>> FAIL <<<\033[0m\n"
 		echo Container 2 failed
 		sleep 1
 		docker logs $id2
@@ -86,3 +86,7 @@ do
 	echo -n "."
 	sleep 2
 done
+
+printf "\n\033[31m>>> FAIL <<<\033[0m\n"
+echo Timeout expired
+exit 1
