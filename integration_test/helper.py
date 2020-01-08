@@ -16,31 +16,35 @@ NORESULT = 3
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument("--root", help="Run root process")
-    parser.add_argument("--test", help="Run test #")
+    parser.add_argument("--root", help="Run root process (with test ids)")
+    parser.add_argument("--test", help="Run test id")
     args = parser.parse_args()
 
-    if args.root == 'restart':
-        mark_test(0, True)
-        run_server(test_restart)
-    elif args.root is not None:
-        run_server(test_count(int(args.root)))
+    if args.root is not None:
+        tests = args.root.split(',')
+        if 'restart' in tests:
+            mark_test('restart', True)
+            run_server(test_restart)
+        elif 'start' in tests:
+            mark_test('start', True)
+            run_server(test_results(tests))
+        else:
+            run_server(test_results(tests))
     elif args.test is not None:
-        n = int(args.test)
-        v = run_test(n)
-        mark_test(n, v)
+        v = run_test(args.test)
+        mark_test(args.test, v)
         return v
     else:
         print("Need --root or --test")
 
-def run_test(n):
-    p = subprocess.run(["/mnt/checks/{}".format(n)], stdin=0, stdout=1, stderr=2)
+def run_test(test):
+    p = subprocess.run(["/mnt/checks/{}".format(test)], stdin=0, stdout=1, stderr=2)
     return p.returncode == 0
 
-def mark_test(n, result):
-    print("Test {} {}".format(n, "succeeded" if result else "FAILED"))
+def mark_test(test, result):
+    print("Test {} {}".format(test, "succeeded" if result else "FAILED"))
     with FileLock():
-        path = get_result_path(n, result)
+        path = get_result_path(test, result)
         if os.path.exists(path):
             with open(path, "r") as f:
                 count = int(f.read())
@@ -49,13 +53,13 @@ def mark_test(n, result):
         with open(path, "w") as f:
             f.write(str(count + 1))
 
-def get_result_path(n, result):
+def get_result_path(test, result):
     fname = "result.{}.success" if result else "result.{}.err"
-    return os.path.join(RESULTS, fname.format(n))
+    return os.path.join(RESULTS, fname.format(test))
 
 def test_restart():
     with FileLock():
-        path = get_result_path(0, True)
+        path = get_result_path('restart', True)
         if os.path.exists(path):
             with open(path, "r") as f:
                 count = int(f.read())
@@ -63,15 +67,15 @@ def test_restart():
                 return SUCCESS
     return NORESULT
 
-def test_count(n):
+def test_results(tests):
     def tester():
         with FileLock():
-            for i in range(n):
-                if os.path.exists(get_result_path(i, False)):
-                    print("Case {} failed".format(i))
+            for test in tests:
+                if os.path.exists(get_result_path(test, False)):
+                    print("Case {} failed".format(test))
                     return FAILURE
-                if not os.path.exists(get_result_path(i, True)):
-                    print("Case {} unresolved".format(i))
+                if not os.path.exists(get_result_path(test, True)):
+                    print("Case {} unresolved".format(test))
                     return NORESULT
             print("All passed")
             return SUCCESS

@@ -40,7 +40,7 @@ def main(container_name, action, jobid = None):
     return False
 
 def start_container(container):
-    if container.status == 'exited':
+    if container.status in ('created', 'exited'):
         try:
             container.start()
             return True
