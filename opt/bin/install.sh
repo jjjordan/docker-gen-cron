@@ -23,6 +23,7 @@ tar xf $FCRON_TGZ || exit $?
 cd fcron-$FCRON_VERSION
 ./configure --with-sendmail=/usr/bin/msmtp --with-editor=/bin/ed || exit $?
 make -j || exit $?
+useradd -rU -u 122 fcron || exit $?
 make install || exit $?
 cd /tmp
 

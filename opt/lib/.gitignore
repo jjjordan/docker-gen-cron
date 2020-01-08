@@ -3,4 +3,3 @@
 !*.yml
 !requirements.txt
 !.gitignore
-!.dockerignore
