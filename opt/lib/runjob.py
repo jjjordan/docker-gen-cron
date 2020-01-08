@@ -1,15 +1,15 @@
 #!/usr/bin/python3
+import docker
 import json
 import logging
 import os
-import subprocess
 import sys
 import time
 
+import exec
 import parser
 import logconfig
 
-DOCKER = "/usr/local/bin/docker"
 logger = logging.getLogger("runjob")
 
 def main(container_name, action, jobid = None):
@@ -22,74 +22,81 @@ def main(container_name, action, jobid = None):
 
     logger.debug("uid={uid}, gid={gid}, euid={euid}, egid={egid}".format(uid=os.getuid(), gid=os.getgid(), euid=os.geteuid(), egid=os.getegid()))
 
+    client = docker.from_env()
+    try:
+        container = client.containers.get(container_name)
+    except:
+        logger.exception("Error finding container: {}".format(container_name))
+        return False
+
     if action == 'start':
-        return start_container(container_name)
+        return start_container(container)
     elif action == 'restart':
-        return restart_container(container_name)
+        return restart_container(container)
     elif action == 'job':
-        return run_job(cfg, container_name, jobid)
+        return run_job(container, cfg, jobid)
 
     logger.error("Invalid arguments")
     return False
 
-def start_container(name):
-    status = container_status(name)
-    if status in ('exited',):
-        p = subprocess.run([DOCKER, "start", name], stdin=subprocess.DEVNULL, stdout=1, stderr=2)
-        return p.returncode
-    logger.warning("Container is running, won't stop")
+def start_container(container):
+    if container.status == 'exited':
+        try:
+            container.start()
+            return True
+        except:
+            logger.exception("Unexpected exception starting container {}".format(container.name))
+            return False
+
+    logger.warning("Container {} is running, won't stop".format(container.name))
     return False
 
-def restart_container(name):
-    status = container_status(name)
-    if status == 'running':
-        p = subprocess.run([DOCKER, "restart", name], stdin=subprocess.DEVNULL, stdout=1, stderr=2)
-        return p.returncode
-    logger.warning("Container is not running, won't restart")
+def restart_container(container):
+    if container.status == 'running':
+        try:
+            container.restart()
+            return True
+        except:
+            logger.exception("Unexpected exception restarting container {}".format(container.name))
+            return False
+
+    logger.warning("Container {} is not running, won't restart".format(container.name))
     return False
 
-def container_status(name):
-    p = subprocess.run([DOCKER, "inspect", name], stdin=subprocess.DEVNULL, capture_output=True, text=True)
-    j = json.loads(p.stdout)
-    if len(j) == 1:
-        return j[0].get('State', {}).get('Status', None)
-    else:
-        return None
+def run_job(container, cfg, id):
+    if container.status != 'running':
+        logger.warning("Container {} is not running, won't run job".format(container_name))
+        return False
 
-def run_job(cfg, name, id):
-    jobcfg = find_job(cfg, name, id)
+    jobcfg = find_job(cfg, container.name, id)
     if not jobcfg:
         logger.error("Can't find job, aborting")
         return False
 
     logger.debug(">>> Command: {}".format(jobcfg.job.cmd))
     cmdline = get_command(jobcfg, os.environ)
-
     logger.debug("Executing command: {}".format(repr(cmdline)))
-    stdin = subprocess.PIPE if jobcfg.job.input is not None else subprocess.DEVNULL
-    proc = subprocess.Popen(cmdline, stdin=stdin, stdout=1, stderr=2)
-    proc.communicate(jobcfg.job.input.encode('utf-8') if jobcfg.job.input is not None else None)
-    return proc.returncode
+    try:
+        return exec.docker_exec(container.client.api, container.name, cmdline, jobcfg.job.input)
+    except:
+        logger.exception("Unexpected exception running command")
+        return -1
 
 def get_command(jobcfg, env):
-    cmdline = [DOCKER, "exec", "-i"]
+    newenv = {k: env.get(k, "") for k in jobcfg.env}
+    shell = jobcfg.shell or "/bin/sh"
+    newenv["SHELL"] = shell
+
+    result = {
+        "cmd": [shell, "-c", jobcfg.job.cmd],
+        "environment": newenv,
+    }
+
     if "runas" in jobcfg.options:
-        cmdline += ["-u", jobcfg.options["runas"]]
+        newenv["USER"] = jobcfg.options["runas"]
+        result["user"] = jobcfg.options["runas"]
 
-    for k in jobcfg.env:
-        cmdline += ["-e", "{}={}".format(k, env.get(k, ""))]
-
-    cmdline.append(jobcfg.container)
-
-    if jobcfg.shell is not None:
-        cmdline.append(jobcfg.shell)
-    else:
-        cmdline.append("/bin/sh")
-
-    cmdline.append("-c")
-    cmdline.append(jobcfg.job.cmd)
-
-    return cmdline
+    return result
 
 def find_job(config, container_name, id):
     for container in config.containers:

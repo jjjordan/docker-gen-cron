@@ -18,15 +18,26 @@ tests:
     - index: 1
       crontab_prefix: "@daily"
       crontab_suffix: "-- touch /tmp/daily"
-      docker: ["exec", "-i", "a", "/bin/sh", "-c", "touch /tmp/daily"]
+      docker:
+        cmd: ["/bin/sh", "-c", "touch /tmp/daily"]
+        environment:
+          SHELL: /bin/sh
     - index: 2
       crontab_prefix: "*/1 * * * *"
       crontab_suffix: "-- touch /tmp/minutely"
-      docker: ["exec", "-i", "a", "/bin/sh", "-c", "touch /tmp/minutely"]
+      docker:
+        cmd: ["/bin/sh", "-c", "touch /tmp/minutely"]
+        environment:
+          SHELL: /bin/sh
     - index: 3
       crontab_prefix: "& */1 * * * *"
       crontab_suffix: "-- touch /tmp/minutely.irc"
-      docker: ["exec", "-i", "-u", "irc", "a", "/bin/sh", "-c", "touch /tmp/minutely.irc"]
+      docker:
+        cmd: ["/bin/sh", "-c", "touch /tmp/minutely.irc"]
+        user: irc
+        environment:
+          SHELL: /bin/sh
+          USER: irc
     - index: 4
       crontab: 'VAR1="foo"'
     - index: 5
@@ -34,7 +45,12 @@ tests:
     - index: 6
       crontab_prefix: "*/1 * * * *"
       crontab_suffix: "-- export >output"
-      docker: ["exec", "-i", "-e", "VAR1=foo", "-e", "VAR2=bar", "a", "/bin/sh", "-c", "export >output"]
+      docker:
+        cmd: ["/bin/sh", "-c", "export >output"]
+        environment:
+          SHELL: /bin/sh
+          VAR1: foo
+          VAR2: bar
     - index: 0
       start: true
       crontab: "@daily a start"
@@ -55,17 +71,30 @@ tests:
     - index: 1
       crontab_prefix: "@daily"
       crontab_suffix: "-- touch /tmp/daily"
-      docker: ["exec", "-i", "-u", "irc", "b", "/bin/sh", "-c", "touch /tmp/daily"]
+      docker:
+        cmd: ["/bin/sh", "-c", "touch /tmp/daily"]
+        user: irc
+        environment:
+          SHELL: /bin/sh
+          USER: irc
     - index: 2
       crontab: ""
     - index: 3
       crontab_prefix: "@hourly"
       crontab_suffix: "-- touch /tmp/hourly"
-      docker: ["exec", "-i", "-u", "irc", "b", "/bin/ksh", "-c", "touch /tmp/hourly"]
+      docker:
+        cmd: ["/bin/ksh", "-c", "touch /tmp/hourly"]
+        user: irc
+        environment:
+          SHELL: /bin/ksh
+          USER: irc
     - index: 4
       crontab_prefix: "@reset 1d"
       crontab_suffix: "-- touch /tmp/daily"
-      docker: ["exec", "-i", "b", "/bin/sh", "-c", "touch /tmp/daily"]
+      docker:
+        cmd: ["/bin/sh", "-c", "touch /tmp/daily"]
+        environment:
+          SHELL: /bin/sh
   - name: c
     running: false
     env:
@@ -115,7 +144,12 @@ tests:
     - index: 3
       crontab_prefix: "@hourly,n(0) 5"
       crontab_suffix: "-- touch /tmp/foo"
-      docker: ["exec", "-i", "-u", "irc", "shortcuts_test", "/bin/sh", "-c", "touch /tmp/foo"]
+      docker:
+        cmd: ["/bin/sh", "-c", "touch /tmp/foo"]
+        user: irc
+        environment:
+          SHELL: /bin/sh
+          USER: irc
     - index: 4
       crontab_prefix: "@daily,n(0) 5 5"
       crontab_suffix: "-- touch /tmp/foo"
@@ -144,4 +178,8 @@ tests:
     - index: 4
       crontab_prefix: "* * * * *"
       crontab_suffix: "-- echo hello"
-      docker: ["exec", "-i", "-e", "abc=def", "newlines_test", "/bin/sh", "-c", "echo hello\nworld"]
+      docker:
+        cmd: ["/bin/sh", "-c", "echo hello\nworld"]
+        environment:
+          SHELL: /bin/sh
+          abc: def

@@ -26,13 +26,6 @@ make -j || exit $?
 make install || exit $?
 cd /tmp
 
-# Install docker client
-echo ==== Installing docker client $DOCKER_VERSION
-DOCKER_TGZ=docker-$DOCKER_VERSION.tgz
-test -f $DOCKER_TGZ || wget https://download.docker.com/linux/static/stable/$(uname -m)/$DOCKER_TGZ || exit $?
-tar xf $DOCKER_TGZ docker/docker || exit $?
-mv docker/docker /usr/local/bin/docker || exit $?
-
 # Install docker-gen
 ARCH=$(uname -m)
 case $ARCH in
@@ -49,7 +42,7 @@ tar xf $DOCKER_GEN_TGZ || exit $?
 mv docker-gen /usr/local/bin || exit $?
 
 echo ==== Installing python requirements
-pip3 install -r /opt/lib/requirements.txt || exit $?
+pip3 install --no-cache-dir -r /opt/lib/requirements.txt || exit $?
 
 # Clean up
 chmod 755 /opt/bin/*.sh /opt/lib/reload.py /opt/lib/runjob.py

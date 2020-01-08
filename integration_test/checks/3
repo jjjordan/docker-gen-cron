@@ -2,7 +2,9 @@
 import sys
 
 input = sys.stdin.read()
-if input == "line 1\nline 2\nline 3":
+expected = "line 1\nline 2\nline 3"
+if input == expected:
     sys.exit(0)
 else:
+    print("Expected={}, Actual={}".format(repr(expected), repr(input)))
     sys.exit(1)

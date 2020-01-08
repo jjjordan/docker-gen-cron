@@ -65,7 +65,7 @@ class TestAll(unittest.TestCase):
                 self.assertIsNotNone(jobcfg, "Cannot load job")
 
                 cmdline = runjob.get_command(jobcfg, jobcfg.env)
-                self.assertEqual([runjob.DOCKER] + case["docker"], cmdline)
+                self.assertEqual(case["docker"], cmdline)
 
 def convert_to_json(containers):
     result = {"containers": [], "env": {}}
