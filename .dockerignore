@@ -1,3 +1,10 @@
 *
-opt/lib/__pycache__
+*~
 !opt
+opt/lib/*
+!opt/lib/*.py
+!opt/lib/*.yml
+!opt/lib/requirements.txt
+opt/bin/*
+!opt/bin/*.sh
+!opt/bin/*.c
