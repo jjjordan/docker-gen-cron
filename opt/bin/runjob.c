@@ -29,7 +29,7 @@ int main(int argc, char **argv)
 
 	/* Copy and modify argv */
 	t = 0;
-	pyargv = (const char **) malloc((argc + 1) * sizeof(char *));
+	pyargv = (const char **) malloc((argc + 2) * sizeof(char *));
 	pyargv[t++] = python3;
 	pyargv[t++] = runjob;
 	for (i = 1; i < argc; i++) {
