@@ -3,7 +3,7 @@ import json
 import logging
 import re
 
-JOB_FILE = "/var/run/jobs.json"
+JOB_FILE = "/var/etc/jobs.json"
 logger = logging.getLogger("parser")
 
 class CronTab:

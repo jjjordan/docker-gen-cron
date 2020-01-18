@@ -1,6 +1,6 @@
 #!/bin/sh
 
-rm -f /var/run/jobs.json
+rm -f /var/etc/jobs.json
 . /opt/bin/fcron.sh
 
 if [ -n "$PREFIX" ]; then
