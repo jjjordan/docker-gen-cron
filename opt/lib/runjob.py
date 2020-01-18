@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 import docker
-import json
 import logging
 import os
 import sys

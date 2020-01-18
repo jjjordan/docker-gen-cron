@@ -12,5 +12,5 @@ if [ -n "$DEBUG" ]; then
 fi
 
 # Start docker-gen after delay
-sleep 3
-exec docker-gen -config /opt/etc/jobs.cfg $*
+sleep 1
+exec docker-gen -config /opt/etc/jobs.cfg
