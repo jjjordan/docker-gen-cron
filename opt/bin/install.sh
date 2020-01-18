@@ -46,7 +46,7 @@ echo ==== Installing python requirements
 pip3 install --no-cache-dir -r /opt/lib/requirements.txt || exit $?
 
 # Clean up
-chmod 755 /opt/bin/*.sh /opt/lib/reload.py /opt/lib/runjob.py
+chmod 755 /opt/bin/*.sh /opt/lib/reload.py /opt/lib/runjob.py /opt/lib/waitsig.py
 
 apk del $BUILD_PACKAGES
 rm -rf /tmp/* /var/tmp/*

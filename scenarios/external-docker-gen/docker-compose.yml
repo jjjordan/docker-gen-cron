@@ -1,0 +1,32 @@
+version: '3'
+services:
+  docker-gen:
+    image: jwilder/docker-gen
+    command: -notify-sighup fcron_ext_test -watch /mnt/jobs.json.tmpl /mnt/jobs-out/jobs.json
+    volumes:
+    - /var/run/docker.sock:/tmp/docker.sock
+    - ${PWD}/jobs-out:/mnt/jobs-out
+    - ${PWD}/../../opt/etc/jobs.json.tmpl:/mnt/jobs.json.tmpl
+
+  fcron:
+    container_name: fcron_ext_test
+    build:
+      context: ../..
+      dockerfile: Dockerfile.dev
+    command: /opt/bin/start-fcron.sh
+    environment:
+      TZ: America/Los_Angeles
+      PREFIX: TEST_CRON
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - ${PWD}/jobs-out/jobs.json:/var/run/jobs.json
+
+  cnt_1:
+    image: debian
+    tty: true
+    environment:
+      TEST_CRON_0: ''
+      TEST_CRON_1: '@daily touch /tmp/daily'
+      TEST_CRON_2: '*/1 * * * * touch /tmp/minutely'
+      TEST_CRON_3: '0 */1 * * * touch /tmp/hourly'
+      TEST_CRON_4: '&runas(irc) */1 * * * * touch /tmp/minutely.irc'
