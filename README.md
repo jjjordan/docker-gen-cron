@@ -95,16 +95,16 @@ services:
   cron:
     image: jjjordan/docker-gen-cron
     environment:
-      # Optional: defaults to Etc/UTC
+      # Defaults to Etc/UTC
       TZ: America/Los_Angeles
-      # Optional: Read environment variables with this prefix. Default: CRON
-      #PREFIX: CRON
-      # Optional: Much more output for troubleshooting
-      #DEBUG: 1
+      # Read environment variables with this prefix. Default: CRON
+      PREFIX: CRON
+      # Much more output for troubleshooting
+      DEBUG: 1
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      # Optional: Keep fcron spool on local host
-      #- /var/spool/docker-gen-cron:/var/spool/fcron
+      # Keep fcron spool on local host
+      - /var/spool/docker-gen-cron:/var/spool/fcron
 ```
 
 ## References
