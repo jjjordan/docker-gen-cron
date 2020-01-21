@@ -102,6 +102,14 @@ while [ "$(date +%s)" -lt $deadline ]; do
 		exit 1
 	fi
 
+	if [ "$stat3" -eq "500" ]; then
+		printf "\n\033[31m>>> FAIL <<<\033[0m\n"
+		echo Container 3 failed
+		sleep 1
+		docker logs $id3
+		exit 1
+	fi
+
 	echo -n "."
 	sleep 2
 done
