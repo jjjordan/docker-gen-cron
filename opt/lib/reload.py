@@ -15,6 +15,15 @@ def main():
     return install_crontab(crontab, lirefs)
 
 def generate_crontab(cfg):
+    """Generates a crontab file from the specified config.
+
+    Args:
+        cfg (parser.CronTab): The crontab configuration.
+
+    Returns:
+        list: A list of the lines of the output crontab.
+        dict: A map of lines in the output (1-indexed) to input Job objects.
+    """
     output = []
     lirefs = {}
     for c in cfg.containers:
@@ -30,32 +39,34 @@ def generate_crontab(cfg):
                 if not filter_options(j):
                     continue
 
-                if not parser.is_empty(j):
-                    output.append(serialize_job(j, c))
+                if not j.is_empty():
+                    output.append(serialize_job(j))
                     lirefs[len(output)] = j
 
     return output, lirefs
 
 def filter_options(job):
+    """Removes options from the input Job that are not supported."""
     optcount = len(job.options)
-    for opt in ['n', 'nice', 'runas']:
+    for opt in ["n", "nice", "runas"]:
         if opt in job.options:
             del job.options[opt]
     if job.assign is not None:
-        if job.assign[0] == 'SHELL':
+        if job.assign[0] == "SHELL":
             return False
 
-    if job.prefix == '@' and optcount > 1 and len(job.options) == 1 and job.has_option('monthly', 'weekly', 'daily', 'hourly'):
+    if job.prefix == "@" and optcount > 1 and len(job.options) == 1 and job.has_option("monthly", "weekly", "daily", "hourly"):
         # Corner-case: we've removed options and changed the meaning of the options from
         # proper fcron options to Vixie cron-compatible shortcuts, which changes the number
         # of expected arguments in the timespec.  We need to add something back so we don't
         # confuse the parser.
-        job.options['n'] = '0'
+        job.options["n"] = "0"
 
     return True
 
-def serialize_job(job, container):
-    if job.prefix == '!':
+def serialize_job(job):
+    """Serializes the specified Job to a string"""
+    if job.prefix == "!":
         return job.prefix + serialize_options(job.options)
 
     if job.assign is not None:
@@ -65,7 +76,7 @@ def serialize_job(job, container):
         prefix=job.prefix,
         options=serialize_options(job.options),
         timespec=job.timespec,
-        name=container.name)
+        name=job.container.name)
 
     if job.start:
         s += "start"
@@ -81,33 +92,21 @@ def serialize_job(job, container):
     return s.lstrip()
 
 def serialize_options(opts):
-    return ','.join(('{name}({value})' if v is not None else '{name}').format(name=k, value=v) for k, v in opts.items())
-
-# Can't have nice things (3.8) on debian ...
-#def sanitize_cmd(cmd):
-#    try:
-#        parts = shlex.split(cmd)
-#    except ValueErrore:
-#        logger.exception("Parsing cmd")
-#        return None
-#
-#    last = None
-#    for i, part in enumerate(parts):
-#        if any(x in part for x in ('\\', '>', '#', '"', "'", '--', '\n')):
-#            last = i
-#            break
-#    if last is not None:
-#        parts = parts[:last]
-#    return shlex.join(parts)
+    """Serializes an Options object"""
+    return ",".join(("{name}({value})" if v is not None else "{name}").format(name=k, value=v) for k, v in opts.items())
 
 def sanitize_cmd(cmd):
-    idxs = [cmd.index(c) for c in ('\\', '\n') if c in cmd]
+    """Sanitizes the specified cmd so that it can be safely included in the
+    command line as reminder text (following --).
+    """
+    idxs = [cmd.index(c) for c in ("\\", "\n") if c in cmd]
     if len(idxs) > 0:
         cmd = cmd[:min(idxs)]
     return cmd
 
 def install_crontab(crontab, lirefs):
-    contents = '\n'.join(crontab) + '\n'
+    """Invokes fcrontab to install the specified crontab"""
+    contents = "\n".join(crontab) + "\n"
 
     # Get current crontab
     proc = subprocess.run(["fcrontab", "-l", USER], text=True, capture_output=True)
@@ -139,16 +138,16 @@ def install_crontab(crontab, lirefs):
             logger.debug("fcrontab - {} stderr:\n{}".format(USER, proc.stderr))
 
     # Warn about syntax errors
-    for line in proc.stderr.split('\n'):
-        if ': Syntax error:' in line:
-            parts = line.split(':')
+    for line in proc.stderr.split("\n"):
+        if ": Syntax error:" in line:
+            parts = line.split(":")
             lineno = parts[1]
             if parser.is_int(lineno):
                 num = int(lineno)
                 if num in lirefs:
                     job = lirefs[num]
                     xformed = crontab[num - 1]
-                    t = 'start' if job.start else 'restart' if job.restart else 'job'
+                    t = "start" if job.start else "restart" if job.restart else "job"
                     logger.warning("Syntax error in {}:{} {}\nOriginal line: {}\nTransformed line: {}"
                         .format(job.container.name, t, job.index, job.orig, xformed))
                 else:
@@ -159,6 +158,6 @@ def install_crontab(crontab, lirefs):
     logger.info("Crontab updated")
     return True
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
     sys.exit(0 if main() else 1)

@@ -7,11 +7,29 @@ JOB_FILE = "/var/etc/jobs.json"
 logger = logging.getLogger("parser")
 
 class CronTab:
+    """
+    CronTab represents configuration extracted from environment variables on docker containers.
+
+    Attributes:
+        containers (list): List of Container objects
+        environment (dict): Environment variables supplied to docker-gen specific to docker-gen-cron
+    """
     def __init__(self):
         self.containers = []
         self.environment = {}
 
 class Container:
+    """
+    Container represents information about a container on the system.
+
+    Attributes:
+        name (str): Container name
+        running (bool): Whether the container is running
+        options (dict): Options specified on the container
+        jobs (list): List of jobs specified in the container environment
+        start_jobs (list): List of start jobs specified in the container environment
+        restart_jobs (list): List of restart jobs specified in the container environment
+    """
     def __init__(self):
         self.name = None
         self.running = False
@@ -21,6 +39,22 @@ class Container:
         self.restart_jobs = []
 
 class Job:
+    """
+    Job represents a job specified in a container's environment
+
+    Attributes:
+        container (Container): Parent container
+        index (int): Index of job environment variable
+        orig (str): Original cronjob specified line
+        options (Options): Options for fcron
+        assign (tuple): Key and value for an assignment
+        prefix (str): First character of job spec if %, @, &, or !
+        timespec (str): Cron job time spec
+        cmd (str): Command to run
+        input (str): Data to supply to stdin of job
+        start (bool): Whether this is a job to start the container
+        restart (bool): Whether this is a job to restart the container
+    """
     def __init__(self):
         self.container = None
         self.index = 0
@@ -35,18 +69,41 @@ class Job:
         self.restart = False
 
     def jobhash(self):
+        """Calculates the hash of the job index, cmd, and input"""
         m = hashlib.sha256()
-        m.update("{}\n".format(self.index).encode('utf-8'))
-        m.update(self.cmd.encode('utf-8'))
+        m.update("{}\n".format(self.index).encode("utf-8"))
+        m.update(self.cmd.encode("utf-8"))
         if self.input is not None:
             m.update(b"\n")
-            m.update(self.input.encode('utf-8'))
+            m.update(self.input.encode("utf-8"))
         return m.hexdigest()[0:10]
 
     def has_option(self, *options):
+        """Returns true if any of the specified options exists on this job"""
         return self.options.has_any(*options)
 
+    def is_empty(self):
+        """Returns whether the job is "empty": whether it is malformed to the point that
+        it can be omitted from the output.
+        """
+        if self.assign is not None:
+            return False
+        if self.prefix == "!" and len(self.options) > 0:
+            return False
+        if len(self.options) == 0 and not self.timespec:
+            return True
+        if self.start or self.restart:
+            return False
+        if self.cmd:
+            return False
+        return True
+
+
 class Options:
+    """
+    Options is a dict-like object backed by an associative list.  Allows duplicates and maintains
+    original item order.
+    """
     def __init__(self):
         self._items = []
 
@@ -93,11 +150,21 @@ class Options:
         return False
 
 def parse_crontab():
+    """Parses the crontab from a jobs.json output file
+
+    Returns:
+        CronTab: Crontabs of all containers in jobs.json
+    """
     with open(JOB_FILE, "r") as f:
         j = json.load(f)
     return parse_crontab_json(j)
 
 def parse_crontab_json(j):
+    """Parses the crontab from the specified parsed JSON.
+
+    Returns:
+        CronTab: Crontabs of all containers found in data
+    """
     result = CronTab()
     for cj in j["containers"]:
         if cj is None: continue
@@ -119,6 +186,12 @@ def parse_crontab_json(j):
     return result
 
 def parse_container(c, e):
+    """Parses the crontabs for the specified environment variables.
+
+    Args:
+        c (Container): Container object to write to
+        e (dict): Environment variables for container
+    """
     jobs = [(int(k), v) for k, v in e if is_int(k)]
     startJobs = [(int(trim_prefix("START_", k)), v) for k, v in e if k.startswith("START_") and is_int(trim_prefix("START_", k))]
     restartJobs = [(int(trim_prefix("RESTART_", k)), v) for k, v in e if k.startswith("RESTART_") and is_int(trim_prefix("RESTART_", k))]
@@ -129,7 +202,7 @@ def parse_container(c, e):
         if job is not None:
             job.container = c
             job.index = i
-            if not is_empty(job):
+            if not job.is_empty():
                 c.jobs.append(job)
     for i, j in sorted(startJobs):
         job = parse_job(j)
@@ -137,7 +210,7 @@ def parse_container(c, e):
             job.container = c
             job.index = i
             job.start = True
-            if not is_empty(job):
+            if not job.is_empty():
                 c.start_jobs.append(job)
     for i, j in sorted(restartJobs):
         job = parse_job(j)
@@ -145,31 +218,32 @@ def parse_container(c, e):
             job.container = c
             job.index = i
             job.restart = True
-            if not is_empty(job):
+            if not job.is_empty():
                 c.restart_jobs.append(job)
 
 def parse_job(j):
+    """Parses the job string into a Job object."""
     job = Job()
     job.orig = j
 
     j = j.lstrip()
 
     # Exit early for comments
-    if j.startswith('#'):
+    if j.startswith("#"):
         return None
 
     # Deal with any potential funny business here, which would likely always involve newlines.
     # We'll add this back at the end after we've gotten past the point where stuff will be
     # written back out nearly unchanged.
-    postlf = ''
-    if '\n' in j:
-        idx = j.index('\n')
+    postlf = ""
+    if "\n" in j:
+        idx = j.index("\n")
         postlf, j = j[idx:], j[:idx]
 
     # If this looks like an assignment, then handle it and go
-    m = re.match(r'[a-zA-Z]\w*\s*=', j)
+    m = re.match(r"[a-zA-Z]\w*\s*=", j)
     if m is not None:
-        k, v = j.split('=', 2)
+        k, v = j.split("=", 2)
         k = k.strip()
         v = v.strip()
         if (v.startswith('"') and v.endswith('"')) or (v.startswith("'") and v.endswith("'")):
@@ -184,7 +258,7 @@ def parse_job(j):
         j = j[1:]
 
     # Find end of options
-    m = re.match(r'(([a-zA-Z][a-zA-Z0-9]+)(\([^\)\s]+\))?,)*([a-zA-Z][a-zA-Z0-9]+)(\([^\)\s]+\))?', j)
+    m = re.match(r"(([a-zA-Z][a-zA-Z0-9]+)(\([^\)\s]+\))?,)*([a-zA-Z][a-zA-Z0-9]+)(\([^\)\s]+\))?", j)
     if m is not None:
         # Parse them.
         last = m.end()
@@ -194,7 +268,7 @@ def parse_job(j):
             return None
         j = j[last:]
 
-    if job.prefix == '!':
+    if job.prefix == "!":
         # Options set only, we're done.
         return job
 
@@ -210,20 +284,21 @@ def parse_job(j):
     return job
 
 def parse_options(job, options):
+    """Parses fcron options into the specified job."""
     i = 0
     while i < len(options):
-        nextComma = options.find(',', i)
-        nextParen = options.find('(', i)
+        nextComma = options.find(",", i)
+        nextParen = options.find("(", i)
         arg = None
 
         if nextParen >= 0 and ((nextComma >= 0 and nextParen < nextComma) or (nextComma < 0)):
             # We have an argument to consume.
-            endParen = options.find(')', i)
+            endParen = options.find(")", i)
             if endParen < 0:
                 logger.warning("Unmatched '('")
                 return False
             job.options[options[i:nextParen]] = options[nextParen + 1:endParen]
-            nextComma = options.find(',', endParen)
+            nextComma = options.find(",", endParen)
             if nextComma < 0:
                 break
             i = nextComma + 1
@@ -239,8 +314,18 @@ def parse_options(job, options):
     return True
 
 def parse_timespec(job, line):
+    """Parses the timespec into the specified job.
+
+    Args:
+        job (Job): Job object
+        line (str): The portion of the line beginning with the timespec.
+
+    Returns:
+        str: The remainder of the line following the timespec
+        bool: Whether the timespec was valid (contains the correct number of elements)
+    """
     # Parse the timespec.  The prefix and options determine how many fields it should contain.
-    if job.prefix == '%':
+    if job.prefix == "%":
         if job.has_option("hourly", "midhourly"):
             # minutes
             N = 1
@@ -253,7 +338,7 @@ def parse_timespec(job, line):
         else:
             # "normal" entry
             N = 5
-    elif job.prefix == '@':
+    elif job.prefix == "@":
         if job.has_option("reboot", "resume", "yearly", "annually", "midnight"):
             # These can only ever be replacements
             N = 0
@@ -279,37 +364,44 @@ def parse_timespec(job, line):
     job.timespec, rest, ok = take_fields(line, N)
     return rest, ok
 
-def is_empty(job):
-    if job.assign is not None:
-        return False
-    if job.prefix == '!' and len(job.options) > 0:
-        return False
-    if len(job.options) == 0 and not job.timespec:
-        return True
-    if job.start or job.restart:
-        return False
-    if job.cmd:
-        return False
-    return True
-
 def split_input(line):
+    """Splits the command into command and input.
+
+    Args:
+        line (str): The cronjob line after the timespec.
+
+    Returns:
+        str: The command
+        str: The input or None
+    """
     i = 0
     bslash = False
     while i < len(line):
         c = line[i]
         if bslash:
             bslash = False
-        elif c == '\\':
+        elif c == "\\":
             bslash = True
-        elif c == '%':
+        elif c == "%":
             # Start of input!
-            return line[:i].strip(), line[i+1:].replace('%', '\n')
+            return line[:i].strip(), line[i+1:].replace("%", "\n")
         i += 1
 
     # We didn't find input character.
     return line.strip(), None
 
 def take_fields(line, n):
+    """Splits the specified line into two pieces, with the first containing n fields.
+
+    Args:
+        line (str): A crontab line
+        n (int): The number of fields to return in the first half.
+
+    Returns:
+        str: The first n fields of line
+        str: The remainder of the line
+        bool: Whether at least n fields were found
+    """
     line = line.lstrip()
     i = 0
     taken = 0
@@ -327,9 +419,20 @@ def take_fields(line, n):
     return line[:i].rstrip(), line[i:], (taken == n)
 
 def trim_prefix(pfx, s):
+    """Trims a prefix from a string if the string starts with that prefix.
+
+    Args:
+        pfx (str): Prefix
+        s (str): String
+
+    Returns:
+        str: s with the specified prefix removed if it is a prefix. Otherwise,
+            s is returned.
+    """
     return s[len(pfx):] if s.startswith(pfx) else s
 
 def is_int(s):
+    """Returns true if the specified string is an integer."""
     try:
         int(s)
         return True
@@ -343,8 +446,8 @@ def print_job(j):
     print("cmd=" + j.cmd)
 
 def test_parse(j):
-    job = parseJob(j)
+    job = parse_job(j)
     if job is not None:
-        printJob(job)
+        print_job(job)
     else:
         print("parseJob returned None")

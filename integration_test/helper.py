@@ -21,12 +21,12 @@ def main():
     args = parser.parse_args()
 
     if args.root is not None:
-        tests = args.root.split(',')
-        if 'restart' in tests:
-            mark_test('restart', True)
+        tests = args.root.split(",")
+        if "restart" in tests:
+            mark_test("restart", True)
             run_server(test_restart)
-        elif 'start' in tests:
-            mark_test('start', True)
+        elif "start" in tests:
+            mark_test("start", True)
             run_server(test_results(tests))
         else:
             run_server(test_results(tests))
@@ -38,10 +38,12 @@ def main():
         print("Need --root or --test")
 
 def run_test(test):
+    """Executes the specified test and returns whether it succeeds"""
     p = subprocess.run(["/mnt/checks/{}".format(test)], stdin=0, stdout=1, stderr=2)
     return p.returncode == 0
 
 def mark_test(test, result):
+    """Writes the file indicating the resulf of the specified test"""
     print("Test {} {}".format(test, "succeeded" if result else "FAILED"))
     with FileLock():
         path = get_result_path(test, result)
@@ -54,12 +56,14 @@ def mark_test(test, result):
             f.write(str(count + 1))
 
 def get_result_path(test, result):
+    """Gets the path of the file for the specified test result"""
     fname = "result.{}.success" if result else "result.{}.err"
     return os.path.join(RESULTS, fname.format(test))
 
 def test_restart():
+    """Checks whether the 'restart' test succeeded or failed"""
     with FileLock():
-        path = get_result_path('restart', True)
+        path = get_result_path("restart", True)
         if os.path.exists(path):
             with open(path, "r") as f:
                 count = int(f.read())
@@ -68,6 +72,7 @@ def test_restart():
     return NORESULT
 
 def test_results(tests):
+    """Returns a function that checks whether the specified tests all succeeded"""
     def tester():
         with FileLock():
             for test in tests:
@@ -82,15 +87,19 @@ def test_results(tests):
     return tester
 
 def run_server(tester):
+    """Starts the server to convey results"""
     server = Server(tester)
     server.serve_forever()
 
 class Server(http.server.ThreadingHTTPServer):
     def __init__(self, tester):
-        super().__init__(('', 80), Handler)
+        super().__init__(("", 80), Handler)
         self.tester = tester
 
 class Handler(http.server.BaseHTTPRequestHandler):
+    """
+    Handler writes status codes to convey the status of the tests.
+    """
     def do_GET(self):
         n = self.server.tester()
         if n == SUCCESS:
@@ -112,6 +121,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(b"Unexpected result")
 
 class FileLock:
+    """
+    FileLock implements fcntl-based shared locking. This can be used as the
+    context in a with block.
+    """
     def __init__(self, file=LOCK_FILE):
         self.acquired = 0
         old = os.umask(0)
@@ -136,7 +149,7 @@ class FileLock:
             fcntl.flock(self.fd, fcntl.LOCK_UN)
             self.fd.close()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     res = main()
     if type(res) == int:
         sys.exit(res)
