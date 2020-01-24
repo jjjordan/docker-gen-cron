@@ -64,7 +64,7 @@ departure from the standard behavior of mailing output, but the normal
 behavior can be restored.  `docker-gen-cron` has
 [msmtp](https://marlam.de/msmtp/) installed as the system mailer, which can
 be configured to deliver mail to a remote SMTP server by volume mounting a
-[configuration file](https://marlam.de/msmtp/msmtprc.txt) to
+configuration file() to
 `/etc/msmtprc` and explicitly telling fcron to mail output.  To
 illustrate:
 
@@ -78,13 +78,33 @@ services:
       TZ: America/Los_Angeles
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /etc/secret/msmtprc:/root/.msmtprc
+      - ./msmtprc:/etc/msmtprc
 
   some_other_container:
     # ...
     environment:
-      CRON_0: '!mail(true),mailto(your@address.com),erroronlymail(true)'
-      CRON_1: '@ 1d daily-job.sh'
+      CRON_0: '!mailto(your@address.com),mailfrom(server@address.com),erroronlymail(true)'
+      CRON_1: '@stdout(false),mail(true) 1d daily-job.sh'
+```
+
+`/etc/msmtprc` might look something like this.  See
+[another example](https://marlam.de/msmtp/msmtprc.txt) as well as
+[the documentation](https://marlam.de/msmtp/msmtp.html).
+```
+defaults
+auth            plain
+tls             on
+tls_trust_file  /etc/ssl/certs/ca-certificates.crt
+syslog          off
+
+account         cron
+host            mail.domain.tld
+port            587
+from            "account@domain.tld"
+user            "account@domain.tld"
+password        "password123"
+
+account default : cron
 ```
 
 ### More configuration
