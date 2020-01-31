@@ -1,4 +1,21 @@
 #!/usr/bin/python3
+# This file is part of docker-gen-cron
+# Copyright (C) 2020 John J. Jordan
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+
 import docker
 import logging
 import os
@@ -28,18 +45,26 @@ def main(container_name, action, jobid = None):
         logger.exception("Error finding container: {}".format(container_name))
         return False
 
-    if action == 'start':
+    if action == "start":
         return start_container(container)
-    elif action == 'restart':
+    elif action == "restart":
         return restart_container(container)
-    elif action == 'job':
+    elif action == "job":
         return run_job(container, cfg, jobid)
 
     logger.error("Invalid arguments")
     return False
 
 def start_container(container):
-    if container.status in ('created', 'exited'):
+    """Starts the specified container
+
+    Args:
+        container (docker.Container): Container object
+
+    Returns:
+        bool: Whether the operation succeeded.
+    """
+    if container.status in ("created", "exited"):
         try:
             container.start()
             return True
@@ -51,7 +76,15 @@ def start_container(container):
     return False
 
 def restart_container(container):
-    if container.status == 'running':
+    """Restarts the specified container
+
+    Args:
+        container (docker.Container): Container object
+
+    Returns:
+        bool: Whether the operation succeeded.
+    """
+    if container.status == "running":
         try:
             container.restart()
             return True
@@ -63,7 +96,17 @@ def restart_container(container):
     return False
 
 def run_job(container, cfg, id):
-    if container.status != 'running':
+    """Runs job by id on the specified container.
+
+    Args:
+        container (docker.Container): Container object
+        cfg (parser.CronTab): Crontab configuration
+        id (str): Job id
+
+    Returns:
+        bool/int: Whether the operation succeeds, and if so the exit code of the job.
+    """
+    if container.status != "running":
         logger.warning("Container {} is not running, won't run job".format(container_name))
         return False
 
@@ -82,6 +125,15 @@ def run_job(container, cfg, id):
         return -1
 
 def get_command(jobcfg, env):
+    """Gets the command to run for the specified job.
+
+    Args:
+        jobcfg (parser.Job): Job configuration
+        env (dict): Input environment arguments
+
+    Returns:
+        dict: Named arguments to docker.exec_create
+    """
     newenv = {k: env.get(k, "") for k in jobcfg.env}
     shell = jobcfg.shell or "/bin/sh"
     newenv["SHELL"] = shell
@@ -98,6 +150,16 @@ def get_command(jobcfg, env):
     return result
 
 def find_job(config, container_name, id):
+    """Finds a job by container and id, and evalutes option values along the way.
+
+    Args:
+        config (parser.CronTab): Input configuration
+        container_name (str): Name of the container where the job exists
+        id (str): Job id
+
+    Returns:
+        JobConfig: The job and its associated configuration.
+    """
     for container in config.containers:
         if container.name != container_name:
             continue
@@ -106,11 +168,11 @@ def find_job(config, container_name, id):
         cfg.container = container_name
         for job in container.jobs:
             if job.assign is not None:
-                if job.assign[0] == 'SHELL':
+                if job.assign[0] == "SHELL":
                     cfg.shell = job.assign[1]
                 else:
                     cfg.env[job.assign[0]] = job.assign[1]
-            elif job.prefix == '!':
+            elif job.prefix == "!":
                 cfg.add_options(job.options)
             elif job.jobhash() == id:
                 cfg.add_options(job.options)
@@ -121,6 +183,16 @@ def find_job(config, container_name, id):
     return None
 
 class JobConfig:
+    """
+    JobConfig represents a job and its applied options and environment.
+
+    Attributes:
+        container (parser.Container): The container of the job.
+        env (dict): The environment variables set leading up to this job.
+        options (dict): The fcron options specified for this job.
+        shell (str): The SHELL environment variable or None.
+        job (parser.Job): The job object.
+    """
     def __init__(self):
         self.container = None
         self.env = {}
@@ -129,8 +201,9 @@ class JobConfig:
         self.job = None
 
     def add_options(self, options):
+        """Merges the specified options into this JobConfig"""
         for k, v in options.items():
-            if k == 'reset':
+            if k == "reset":
                 self.options = {}
                 self.env = {} # TODO: Correct?
                 self.shell = None
@@ -138,13 +211,14 @@ class JobConfig:
                 self.options[k] = v
 
 def wait_for_jobs():
+    """Waits for parser.JOB_FILE to exist and returns True on success, False on timeout"""
     for delay in [1, 2, 5, 10, 0]:
         if os.path.exists(parser.JOB_FILE):
             return True
         time.sleep(delay)
     return False
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = sys.argv[1:]
     if len(args) == 2 and args[0] == "-c":
         import shlex

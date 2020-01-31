@@ -45,9 +45,11 @@ mv docker-gen /usr/local/bin || exit $?
 echo ==== Installing python requirements
 pip3 install --no-cache-dir -r /opt/lib/requirements.txt || exit $?
 
-# Clean up
+# Set up permissions/dirs
 chmod 755 /opt/bin/*.sh /opt/lib/reload.py /opt/lib/runjob.py /opt/lib/waitsig.py
+mkdir -p /var/etc
 
+# Clean up
 apk del $BUILD_PACKAGES
 rm -rf /tmp/* /var/tmp/*
 

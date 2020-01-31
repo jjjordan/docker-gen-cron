@@ -1,4 +1,20 @@
 #!/bin/sh
+# This file is part of docker-gen-cron
+# Copyright (C) 2020 John J. Jordan
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 
 cd $(dirname $0)
 
@@ -99,6 +115,14 @@ while [ "$(date +%s)" -lt $deadline ]; do
 		echo Container 2 failed
 		sleep 1
 		docker logs $id2
+		exit 1
+	fi
+
+	if [ "$stat3" -eq "500" ]; then
+		printf "\n\033[31m>>> FAIL <<<\033[0m\n"
+		echo Container 3 failed
+		sleep 1
+		docker logs $id3
 		exit 1
 	fi
 
